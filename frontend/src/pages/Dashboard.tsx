@@ -114,9 +114,9 @@ const Dashboard = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Primary KPI - Compliance Score (Larger, more prominent) - GLASS EFFECT */}
         <div className="lg:col-span-2 card-glass bg-gradient-to-br from-white/90 to-brand-50/80 border-white/60">
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between mb-8">
             <div>
-              <p className="text-sm font-semibold text-neutral-600 uppercase tracking-wide mb-2">
+              <p className="text-sm font-semibold text-neutral-600 uppercase tracking-wide mb-3">
                 Overall Compliance
               </p>
               <div className="flex items-baseline space-x-3">
@@ -131,20 +131,20 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <div className="flex items-center justify-between pt-6 border-t border-white/40">
-            <div>
-              <p className="text-sm text-neutral-600 mb-1">Passed Controls</p>
-              <p className="text-2xl font-bold text-status-success-text">
+          <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/40">
+            <div className="text-center">
+              <p className="text-sm font-medium text-neutral-600 mb-2">Passed Controls</p>
+              <p className="text-3xl font-bold text-status-success-text">
                 {summary?.passed_controls || 0}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-neutral-600 mb-1">Total Findings</p>
-              <p className="text-2xl font-bold text-neutral-900">{totalFindings}</p>
+            <div className="text-center">
+              <p className="text-sm font-medium text-neutral-600 mb-2">Total Findings</p>
+              <p className="text-3xl font-bold text-neutral-900">{totalFindings}</p>
             </div>
-            <div>
-              <p className="text-sm text-neutral-600 mb-1">Risk Level</p>
-              <p className={`text-2xl font-bold ${
+            <div className="text-center">
+              <p className="text-sm font-medium text-neutral-600 mb-2">Risk Level</p>
+              <p className={`text-3xl font-bold ${
                 riskLevel === 'CRITICAL' ? 'text-status-critical-text' :
                 riskLevel === 'HIGH' ? 'text-status-high-text' :
                 riskLevel === 'MEDIUM' ? 'text-status-medium-text' :

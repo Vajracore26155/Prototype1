@@ -166,7 +166,7 @@ async def list_configurations(
         return {
             "success": True,
             "data": {
-                "configurations": [
+                "configurations": [ 
                     {
                         "id": c.id,
                         "config_id": c.config_id,
