@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { FileText, Calendar, Shield, Play } from 'lucide-react';
+import { FileText, Calendar, Shield, Play, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { listConfigurations, runAudit } from '../services/api';
 import type { Configuration } from '../types';
+import BackButton from '../components/BackButton';
 
 const Configurations = () => {
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
@@ -50,11 +51,11 @@ const Configurations = () => {
       case 'FAILED':
         return 'badge-fail';
       case 'PROCESSING':
-        return 'bg-blue-900/30 text-blue-400 border border-blue-800';
+        return 'badge-info';
       case 'NEEDS_REVIEW':
         return 'badge-medium';
       default:
-        return 'bg-gray-700 text-gray-300 border border-gray-600';
+        return 'bg-neutral-100 text-neutral-700 border-neutral-300';
     }
   };
   
@@ -73,47 +74,57 @@ const Configurations = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="spinner h-12 w-12"></div>
       </div>
     );
   }
   
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Configurations</h1>
-          <p className="text-gray-400">Uploaded network device configurations</p>
+    <div className="space-y-8 page-enter">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center space-x-3 mb-2">
+            <BackButton to="/dashboard" label="Dashboard" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2 text-neutral-900">Configurations</h1>
+          <p className="text-neutral-600">Uploaded network device configurations</p>
         </div>
-        <a href="/upload" className="btn-primary">
-          Upload New
+        <a href="/upload" className="btn-primary group flex items-center space-x-2">
+          <span>Upload New</span>
+          <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-200" />
         </a>
       </div>
       
       {configurations.length === 0 ? (
         <div className="card text-center py-12">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-          <h3 className="text-xl font-semibold mb-2">No configurations yet</h3>
-          <p className="text-gray-400 mb-4">Upload your first configuration to begin security analysis</p>
+          <div className="p-4 bg-neutral-100 rounded-2xl inline-block mb-4">
+            <FileText className="w-16 h-16 text-neutral-500" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2 text-neutral-900">No configurations yet</h3>
+          <p className="text-neutral-600 mb-6">Upload your first configuration to begin security analysis</p>
           <a href="/upload" className="btn-primary inline-block">
             Upload Configuration
           </a>
         </div>
       ) : (
         <div className="space-y-4">
-          {configurations.map((config) => (
-            <div key={config.id} className="card hover:border-gray-600 transition-colors cursor-pointer">
+          {configurations.map((config, index) => (
+            <div 
+              key={config.id} 
+              className="card hover:border-neutral-300 hover:shadow-md transition-all duration-200 cursor-pointer hover:translate-y-[-1px] stagger-item"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
                   <div className="text-4xl">{getVendorIcon(config.vendor)}</div>
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold">{config.filename}</h3>
-                      <span className={`badge ${getStatusBadgeClass(config.status)}`}>
+                    <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-2">
+                      <h3 className="text-lg font-semibold text-neutral-900">{config.filename}</h3>
+                      <span className={`badge ${getStatusBadgeClass(config.status)} transition-all duration-150`}>
                         {config.status}
                       </span>
                       {config.vendor && (
-                        <span className="badge bg-purple-900/30 text-purple-400 border border-purple-800">
+                        <span className="badge bg-purple-50 text-purple-700 border-purple-200 transition-all duration-150">
                           {config.vendor}
                           {config.vendor_confidence && 
                             ` (${(config.vendor_confidence * 100).toFixed(0)}%)`
@@ -121,16 +132,16 @@ const Configurations = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-400">
-                      <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-4 text-sm text-neutral-600">
+                      <div className="flex items-center space-x-1.5">
                         <Shield className="w-4 h-4" />
-                        <span>{config.config_id}</span>
+                        <span className="font-medium">{config.config_id}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1.5">
                         <FileText className="w-4 h-4" />
                         <span>{config.file_type}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1.5">
                         <Calendar className="w-4 h-4" />
                         <span>{new Date(config.created_at).toLocaleDateString()}</span>
                       </div>
@@ -142,16 +153,16 @@ const Configurations = () => {
                   <button 
                     onClick={() => handleRunAudit(config.config_id)}
                     disabled={runningAudit === config.config_id}
-                    className="btn-primary flex items-center space-x-2"
+                    className="btn-primary flex items-center space-x-2 group"
                   >
                     {runningAudit === config.config_id ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div className="spinner h-4 w-4 border-white"></div>
                         <span>Running...</span>
                       </>
                     ) : (
                       <>
-                        <Play className="w-4 h-4" />
+                        <Play className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                         <span>Run Audit</span>
                       </>
                     )}
