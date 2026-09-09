@@ -1,0 +1,177 @@
+# Network Security Compliance Rules
+# These rules are vendor-agnostic and evaluate against the Unified Security Model
+
+rules:
+  # ============================================================
+  # Remote Access Security
+  # ============================================================
+  
+  - id: NET-001
+    name: Telnet Must Be Disabled
+    description: |
+      Telnet transmits data in cleartext, including credentials.
+      SSH must be used instead for secure remote management.
+    category: Remote Access
+    severity: HIGH
+    field: remote_access.telnet_enabled
+    operator: equals
+    expected: false
+    explanation: |
+      Telnet is inherently insecure and must not be enabled.
+      Use SSH version 2 for encrypted remote access.
+    references:
+      - CIS Benchmark
+      - NIST 800-53 SC-8
+  
+  - id: NET-002
+    name: SSH Must Be Enabled
+    description: |
+      Secure Shell (SSH) provides encrypted remote access
+      and is required for secure device management.
+    category: Remote Access
+    severity: HIGH
+    field: remote_access.ssh_enabled
+    operator: equals
+    expected: true
+    explanation: |
+      SSH is the industry standard for secure remote device access.
+      It must be enabled and properly configured.
+  
+  - id: NET-003
+    name: SSH Version 2 Required
+    description: |
+      SSH version 1 has known security vulnerabilities.
+      Only SSH version 2 should be used.
+    category: Remote Access
+    severity: MEDIUM
+    field: remote_access.ssh_version
+    operator: equals
+    expected: 2
+    explanation: |
+      SSHv1 is deprecated due to security vulnerabilities.
+      Configure 'ip ssh version 2' to enforce SSHv2 only.
+  
+  # ============================================================
+  # Management Protocol Security
+  # ============================================================
+  
+  - id: NET-004
+    name: HTTP Management Must Be Disabled
+    description: |
+      HTTP transmits management traffic in cleartext.
+      HTTPS must be used instead.
+    category: Management
+    severity: HIGH
+    field: management.http_enabled
+    operator: equals
+    expected: false
+    explanation: |
+      Unencrypted HTTP exposes management credentials and configuration.
+      Use 'no ip http server' and enable HTTPS instead.
+  
+  - id: NET-005
+    name: HTTPS Management Should Be Enabled
+    description: |
+      If web management is required, HTTPS provides
+      encrypted communication for secure administration.
+    category: Management
+    severity: MEDIUM
+    field: management.https_enabled
+    operator: equals
+    expected: true
+    explanation: |
+      HTTPS encrypts management traffic and credentials.
+      Configure with 'ip http secure-server'.
+    optional: true
+  
+  # ============================================================
+  # Authentication
+  # ============================================================
+  
+  - id: NET-006
+    name: Local Authentication Should Be Enabled
+    description: |
+      Local authentication provides a fallback mechanism
+      and enables username tracking for audit purposes.
+    category: Authentication
+    severity: MEDIUM
+    field: authentication.local_authentication
+    operator: equals
+    expected: true
+    explanation: |
+      Configure local user accounts and 'login local' for accountability.
+  
+  - id: NET-007
+    name: Enable Secret Should Be Configured
+    description: |
+      The enable secret controls privileged EXEC mode access
+      and must be properly configured with strong encryption.
+    category: Authentication
+    severity: HIGH
+    field: authentication.enable_secret_configured
+    operator: equals
+    expected: true
+    explanation: |
+      Configure 'enable secret' with a strong password.
+      This is critical for privileged access control.
+  
+  - id: NET-008
+    name: Password Encryption Should Be Enabled
+    description: |
+      Password encryption prevents plaintext passwords
+      from being visible in configuration files.
+    category: Authentication
+    severity: LOW
+    field: authentication.password_encryption
+    operator: equals
+    expected: true
+    explanation: |
+      Enable with 'service password-encryption' to obfuscate passwords.
+      Note: This is weak encryption but better than plaintext.
+    optional: true
+  
+  # ============================================================
+  # Logging and Monitoring
+  # ============================================================
+  
+  - id: NET-009
+    name: Logging Should Be Enabled
+    description: |
+      Security logging is essential for audit trails,
+      incident response, and compliance.
+    category: Logging
+    severity: MEDIUM
+    field: logging.enabled
+    operator: equals
+    expected: true
+    explanation: |
+      Configure remote syslog server with 'logging <server-ip>'.
+      Enables security event tracking and analysis.
+  
+  # ============================================================
+  # Access Control
+  # ============================================================
+  
+  - id: NET-010
+    name: Session Timeout Should Be Configured
+    description: |
+      Automatic session timeouts reduce the risk of
+      unauthorized access from unattended sessions.
+    category: Access Control
+    severity: LOW
+    field: access_control.timeout_configured
+    operator: equals
+    expected: true
+    explanation: |
+      Configure 'exec-timeout' or 'timeout login response' to automatically
+      disconnect idle sessions.
+    optional: true
+
+# Metadata
+metadata:
+  version: "1.0.0"
+  last_updated: "2026-09-08"
+  rule_count: 10
+  description: |
+    Network device security compliance rules for multi-vendor environments.
+    Rules are evaluated against the vendor-agnostic Unified Security Model.

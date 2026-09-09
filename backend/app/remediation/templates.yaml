@@ -1,0 +1,278 @@
+# Remediation Templates
+# Vendor-specific commands to fix compliance violations
+
+remediations:
+  
+  # ============================================================
+  # NET-001: Telnet Must Be Disabled
+  # ============================================================
+  
+  NET-001:
+    description: "Disable Telnet, enable SSH only"
+    Cisco: |
+      ! Disable Telnet, enable SSH only
+      line vty 0 4
+       transport input ssh
+       login local
+      !
+      ! Ensure SSH is enabled
+      ip ssh version 2
+      ip ssh time-out 60
+      ip ssh authentication-retries 2
+    
+    Fortinet: |
+      # Disable Telnet from management access
+      config system interface
+        edit "wan1"
+          set allowaccess ping https ssh
+        next
+      end
+    
+    explanation: |
+      Remove 'telnet' from transport input or allowaccess configuration.
+      Ensure SSH remains enabled for secure remote access.
+  
+  # ============================================================
+  # NET-002: SSH Must Be Enabled
+  # ============================================================
+  
+  NET-002:
+    description: "Enable SSH for secure remote access"
+    Cisco: |
+      ! Enable SSH
+      ip ssh version 2
+      ip ssh time-out 60
+      ip ssh authentication-retries 2
+      !
+      line vty 0 4
+       transport input ssh
+       login local
+    
+    Fortinet: |
+      # Enable SSH management access
+      config system interface
+        edit "wan1"
+          set allowaccess ping https ssh
+        next
+      end
+    
+    explanation: |
+      Configure SSH on the management interface with secure settings.
+  
+  # ============================================================
+  # NET-003: SSH Version 2 Required
+  # ============================================================
+  
+  NET-003:
+    description: "Enforce SSH version 2"
+    Cisco: |
+      ! Enforce SSH version 2 only
+      ip ssh version 2
+    
+    Fortinet: |
+      # SSH version is controlled by FortiOS
+      # Ensure firmware is up-to-date
+      # Modern FortiOS versions only support SSHv2
+    
+    explanation: |
+      SSH version 1 has known vulnerabilities. Configure SSHv2 only.
+  
+  # ============================================================
+  # NET-004: HTTP Management Must Be Disabled
+  # ============================================================
+  
+  NET-004:
+    description: "Disable HTTP, use HTTPS only"
+    Cisco: |
+      ! Disable HTTP management
+      no ip http server
+      !
+      ! Enable HTTPS if web management is needed
+      ip http secure-server
+      ip http authentication local
+    
+    Fortinet: |
+      # HTTP is controlled per-interface
+      config system interface
+        edit "wan1"
+          set allowaccess ping https ssh
+          ! Remove 'http' from allowaccess
+        next
+      end
+      
+      # Disable HTTP port globally if needed
+      config system settings
+        unset gui-http-port
+      end
+    
+    explanation: |
+      HTTP transmits credentials in cleartext. Use HTTPS for web management.
+  
+  # ============================================================
+  # NET-005: HTTPS Management Should Be Enabled
+  # ============================================================
+  
+  NET-005:
+    description: "Enable HTTPS for secure web management"
+    Cisco: |
+      ! Enable HTTPS management
+      ip http secure-server
+      ip http authentication local
+      !
+      ! Optionally configure TLS version
+      ip http tls-version TLSv1.2
+    
+    Fortinet: |
+      # Enable HTTPS on management interface
+      config system interface
+        edit "wan1"
+          set allowaccess ping https ssh
+        next
+      end
+      
+      # Configure HTTPS settings
+      config system settings
+        set gui-https-port 443
+        set admin-https-ssl-versions tlsv1-2 tlsv1-3
+      end
+    
+    explanation: |
+      HTTPS encrypts management traffic. Configure with strong TLS versions.
+  
+  # ============================================================
+  # NET-006: Local Authentication Should Be Enabled
+  # ============================================================
+  
+  NET-006:
+    description: "Configure local authentication"
+    Cisco: |
+      ! Configure local user accounts
+      username admin secret 5 <encrypted-password>
+      username operator secret 5 <encrypted-password>
+      !
+      ! Enable local authentication on VTY lines
+      line vty 0 4
+       login local
+    
+    Fortinet: |
+      # Local admin accounts are configured separately
+      config system admin
+        edit "admin"
+          set password <strong-password>
+        next
+      end
+    
+    explanation: |
+      Local authentication provides fallback access and enables user tracking.
+  
+  # ============================================================
+  # NET-007: Enable Secret Should Be Configured
+  # ============================================================
+  
+  NET-007:
+    description: "Configure enable secret"
+    Cisco: |
+      ! Configure enable secret with strong password
+      enable secret 5 <encrypted-password>
+      !
+      ! Do not use 'enable password' (weak encryption)
+    
+    Fortinet: |
+      # FortiGate uses admin accounts instead of enable secret
+      # Ensure strong admin passwords are configured
+      config system admin
+        edit "admin"
+          set password <strong-password>
+        next
+      end
+    
+    explanation: |
+      Enable secret controls privileged EXEC access. Use strong password.
+  
+  # ============================================================
+  # NET-008: Password Encryption Should Be Enabled
+  # ============================================================
+  
+  NET-008:
+    description: "Enable password encryption"
+    Cisco: |
+      ! Enable password encryption
+      service password-encryption
+    
+    Fortinet: |
+      # Passwords are automatically encrypted in FortiGate
+      # No additional configuration needed
+    
+    explanation: |
+      Cisco Type 7 encryption is weak but better than plaintext.
+      Use 'secret' instead of 'password' where possible.
+  
+  # ============================================================
+  # NET-009: Logging Should Be Enabled
+  # ============================================================
+  
+  NET-009:
+    description: "Configure security logging"
+    Cisco: |
+      ! Configure remote syslog
+      logging <syslog-server-ip>
+      logging trap informational
+      logging source-interface <interface>
+      !
+      ! Configure buffered logging
+      logging buffered 8192
+      !
+      ! Enable timestamps
+      service timestamps log datetime msec
+    
+    Fortinet: |
+      # Configure syslog forwarding
+      config log syslogd setting
+        set status enable
+        set server "<syslog-server-ip>"
+        set port 514
+        set format default
+      end
+    
+    explanation: |
+      Security logging is essential for audit trails and incident response.
+  
+  # ============================================================
+  # NET-010: Session Timeout Should Be Configured
+  # ============================================================
+  
+  NET-010:
+    description: "Configure session timeouts"
+    Cisco: |
+      ! Configure VTY line timeout
+      line vty 0 4
+       exec-timeout 10 0
+       timeout login response 30
+      !
+      ! Configure console timeout
+      line console 0
+       exec-timeout 10 0
+    
+    Fortinet: |
+      # Configure admin session timeout
+      config system global
+        set admin-timeout 10
+      end
+      
+      # Configure idle timeout per admin
+      config system admin
+        edit "admin"
+          set idle-timeout 10
+        next
+      end
+    
+    explanation: |
+      Automatic timeouts reduce risk from unattended sessions.
+
+# Metadata
+metadata:
+  version: "1.0.0"
+  last_updated: "2026-09-08"
+  description: |
+    Vendor-specific remediation commands for common security violations.
+    Commands are provided for Cisco IOS/IOS-XE and Fortinet FortiGate.
