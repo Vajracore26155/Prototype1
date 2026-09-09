@@ -55,6 +55,11 @@ export interface Finding {
   evidence_file?: string;
   evidence_line?: number;
   evidence_text?: string;
+  evidence?: {
+    file: string;
+    line?: number;
+    text: string;
+  };
   risk_score?: number;
   remediation?: string;
   created_at: string;

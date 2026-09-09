@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, LayoutDashboard, Upload, FileText, Brain } from 'lucide-react';
+import { Shield, LayoutDashboard, Upload, FileText } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
