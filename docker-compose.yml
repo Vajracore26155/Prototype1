@@ -1,0 +1,189 @@
+version: '3.8'
+
+# Vajra Core - Phase 0.5 Foundation Infrastructure
+# Production-oriented development environment
+
+services:
+  # PostgreSQL - Primary database
+  postgres:
+    image: postgres:15-alpine
+    container_name: vajra-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vajra_core}
+      POSTGRES_USER: ${POSTGRES_USER:-vajra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vajra_dev_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vajra} -d ${POSTGRES_DB:-vajra_core}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+    restart: unless-stopped
+
+  # Redis - Job queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: vajra-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-vajra_redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+    restart: unless-stopped
+
+  # MinIO - S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: vajra-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_DEFAULT_BUCKETS:-vajra-configs,vajra-reports,vajra-artifacts}
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+    restart: unless-stopped
+
+  # MinIO Client - Initialize buckets
+  minio-init:
+    image: minio/mc:latest
+    container_name: vajra-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set vajra http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin123};
+      mc mb --ignore-existing vajra/vajra-configs;
+      mc mb --ignore-existing vajra/vajra-reports;
+      mc mb --ignore-existing vajra/vajra-artifacts;
+      mc policy set download vajra/vajra-reports;
+      echo 'MinIO buckets initialized successfully';
+      exit 0;
+      "
+    networks:
+      - vajra-network
+
+  # Keycloak - Identity and access management (optional for Phase 0.5)
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: vajra-keycloak
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_password}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-vajra}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-vajra_dev_password}
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    command: start-dev
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - vajra-network
+    restart: unless-stopped
+    profiles:
+      - auth  # Optional: start with 'docker compose --profile auth up'
+
+  # Celery Worker - Background job processing
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: vajra-celery-worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vajra}:${POSTGRES_PASSWORD:-vajra_dev_password}@postgres:5432/${POSTGRES_DB:-vajra_core}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - worker_data:/app/data
+    networks:
+      - vajra-network
+    restart: unless-stopped
+    profiles:
+      - workers  # Optional: start with 'docker compose --profile workers up'
+
+  # Celery Flower - Task monitoring (optional)
+  celery-flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: vajra-celery-flower
+    command: celery -A app.workers.celery_app flower --port=5555
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/1
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - vajra-network
+    restart: unless-stopped
+    profiles:
+      - workers
+      - monitoring
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  worker_data:
+    driver: local
+
+networks:
+  vajra-network:
+    driver: bridge
+    name: vajra-network

@@ -51,8 +51,16 @@ app.add_middleware(
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "ok", "service": "SIH26155 Network Security Auditor"}
+    """Simple health check endpoint"""
+    from app.core.health import get_health_summary
+    return get_health_summary()
+
+
+@app.get("/health/detailed")
+async def health_check_detailed():
+    """Detailed health check with all service statuses"""
+    from app.core.health import HealthChecker
+    return HealthChecker.check_all()
 
 
 @app.get("/")
@@ -61,7 +69,8 @@ async def root():
     return {
         "service": "SIH26155 Network Security Auditor",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
+        "phase": "0.5 - Foundation"
     }
 
 
