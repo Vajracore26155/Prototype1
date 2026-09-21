@@ -111,7 +111,7 @@ class AuditOrchestrator:
                     if audit.requires_human_review:
                         audit.review_reason = "; ".join(review_reasons)
                         audit.status = "NEEDS_REVIEW"
-                        print(f"⚠️  Audit flagged for human review: {audit.review_reason}")
+                        print(f"[WARNING] Audit flagged for human review: {audit.review_reason}")
             
             # Store normalized data
             audit.normalized_data = model.model_dump(mode='json')

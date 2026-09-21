@@ -1,5 +1,163 @@
 version: '3.8'
 
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: vajra-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vajra_core}
+      POSTGRES_USER: ${POSTGRES_USER:-vajra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vajra_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vajra}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+
+  # Redis - Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: vajra-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-vajra_redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+
+  # MinIO - S3-compatible Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: vajra-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - vajra-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vajra-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vajra}:${POSTGRES_PASSWORD:-vajra_dev_password}@postgres:5432/${POSTGRES_DB:-vajra_core}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      USE_POSTGRES: "true"
+      USE_REDIS: "true"
+      USE_MINIO: "true"
+      ENABLE_RATE_LIMITING: "true"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - vajra-network
+
+  # Celery Worker - Async Task Processing
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vajra-celery-worker
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vajra}:${POSTGRES_PASSWORD:-vajra_dev_password}@postgres:5432/${POSTGRES_DB:-vajra_core}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/1
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - vajra-network
+
+  # Flower - Celery Monitoring
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vajra-flower
+    command: celery -A app.tasks.celery_app flower --port=5555
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-vajra_redis_password}@redis:6379/1
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:flower_password}
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      - redis
+      - celery_worker
+    networks:
+      - vajra-network
+
+  # Frontend (Optional - if deploying with Docker)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: vajra-frontend
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - vajra-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  backend_data:
+    driver: local
+
+networks:
+  vajra-network:
+    driver: bridge
+
 # Vajra Core - Phase 0.5 Foundation Infrastructure
 # Production-oriented development environment
 

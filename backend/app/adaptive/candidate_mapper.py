@@ -80,7 +80,7 @@ class CandidateMapper:
                 ]
             
             self.embeddings_initialized = True
-            print(f"✓ Initialized embeddings for {len(self.concept_embeddings)} concepts")
+            print(f"[SUCCESS] Initialized embeddings for {len(self.concept_embeddings)} concepts")
         except Exception as e:
             print(f"Warning: Failed to initialize embeddings: {e}")
             self.embeddings_initialized = False

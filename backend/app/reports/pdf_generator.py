@@ -1,661 +1,690 @@
 """
-Professional PDF Report Generator for Security Audit Results
-Enterprise-grade document design with clean typography and layout.
+Professional PDF Report Generator
+Phase 10: Advanced PDF reporting with ReportLab
 """
-from datetime import datetime
-from io import BytesIO
-from typing import List
-
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    PageBreak, KeepTogether
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
+    PageBreak, Image, KeepTogether
 )
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
-from reportlab.graphics.shapes import Drawing, Line
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+from io import BytesIO
+import os
 
-from app.database import Audit, Finding, Configuration, get_db_session
 
-
-class ReportCanvas(canvas.Canvas):
-    """Custom canvas for headers and footers"""
+class PDFReportGenerator:
+    """
+    Professional PDF report generator for VAJRA CORE
     
-    def __init__(self, *args, **kwargs):
-        self.audit_id = kwargs.pop('audit_id', 'N/A')
-        self.report_date = datetime.utcnow().strftime('%B %d, %Y')
-        canvas.Canvas.__init__(self, *args, **kwargs)
-        self.pages = []
-        
-    def showPage(self):
-        self.pages.append(dict(self.__dict__))
-        self._startPage()
-        
-    def save(self):
-        page_count = len(self.pages)
-        for page_num, page in enumerate(self.pages, 1):
-            self.__dict__.update(page)
-            if page_num > 1:  # Skip header/footer on cover
-                self.draw_page_elements(page_num, page_count)
-            canvas.Canvas.showPage(self)
-        canvas.Canvas.save(self)
-        
-    def draw_page_elements(self, page_num, page_count):
-        """Draw header and footer"""
-        # Header line
-        self.setStrokeColor(colors.HexColor('#667eea'))
-        self.setLineWidth(1.5)
-        self.line(0.75*inch, 10.5*inch, 7.75*inch, 10.5*inch)
-        
-        # Header text
-        self.setFont('Helvetica', 9)
-        self.setFillColor(colors.HexColor('#64748b'))
-        self.drawString(0.75*inch, 10.65*inch, 'Tatva Network Security Audit')
-        
-        # Footer line
-        self.setStrokeColor(colors.HexColor('#e2e8f0'))
-        self.setLineWidth(0.5)
-        self.line(0.75*inch, 0.65*inch, 7.75*inch, 0.65*inch)
-        
-        # Footer text
-        self.setFont('Helvetica', 8)
-        self.setFillColor(colors.HexColor('#94a3b8'))
-        self.drawString(0.75*inch, 0.5*inch, f'Report ID: {self.audit_id}')
-        self.drawRightString(7.75*inch, 0.5*inch, f'Page {page_num} of {page_count}')
-        self.drawCentredString(4.25*inch, 0.5*inch, self.report_date)
-
-
-class AuditReportGenerator:
-    """Generate professional PDF audit reports"""
-    
-    # Professional color palette
-    COLORS = {
-        'primary': colors.HexColor('#667eea'),
-        'dark': colors.HexColor('#1e293b'),
-        'medium': colors.HexColor('#475569'),
-        'light': colors.HexColor('#64748b'),
-        'lighter': colors.HexColor('#94a3b8'),
-        'critical': colors.HexColor('#dc2626'),
-        'high': colors.HexColor('#f97316'),
-        'medium_sev': colors.HexColor('#eab308'),
-        'low': colors.HexColor('#22c55e'),
-        'pass': colors.HexColor('#10b981'),
-        'fail': colors.HexColor('#ef4444'),
-        'warning': colors.HexColor('#f59e0b'),
-        'info': colors.HexColor('#3b82f6'),
-    }
+    Generates evidence-backed security audit reports
+    """
     
     def __init__(self):
         self.styles = getSampleStyleSheet()
-        self._setup_styles()
-        
-    def _setup_styles(self):
-        """Create professional paragraph styles"""
-        
-        def add_style(style):
-            if style.name not in self.styles:
-                self.styles.add(style)
-        
-        # Cover title
-        add_style(ParagraphStyle(
-            name='CoverTitle',
+        self._create_custom_styles()
+        self.page_width = letter[0]
+        self.page_height = letter[1]
+    
+    def _create_custom_styles(self):
+        """Create custom paragraph styles"""
+        # Title style
+        self.styles.add(ParagraphStyle(
+            name='ReportTitle',
             parent=self.styles['Heading1'],
-            fontSize=32,
-            textColor=self.COLORS['dark'],
-            spaceAfter=12,
+            fontSize=24,
+            textColor=colors.HexColor('#1a1a1a'),
+            spaceAfter=30,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold',
-            leading=38
+            fontName='Helvetica-Bold'
         ))
         
-        # Cover subtitle
-        add_style(ParagraphStyle(
-            name='CoverSubtitle',
-            parent=self.styles['Normal'],
-            fontSize=14,
-            textColor=self.COLORS['medium'],
-            spaceAfter=6,
-            alignment=TA_CENTER,
-            fontName='Helvetica'
-        ))
-        
-        # Cover info
-        add_style(ParagraphStyle(
-            name='CoverInfo',
-            parent=self.styles['Normal'],
-            fontSize=11,
-            textColor=self.COLORS['light'],
-            spaceAfter=6,
-            alignment=TA_CENTER,
-            fontName='Helvetica'
-        ))
-        
-        # Section title
-        add_style(ParagraphStyle(
-            name='SectionTitle',
+        # Subtitle style
+        self.styles.add(ParagraphStyle(
+            name='ReportSubtitle',
             parent=self.styles['Heading2'],
-            fontSize=18,
-            textColor=self.COLORS['dark'],
-            spaceAfter=16,
-            spaceBefore=24,
-            fontName='Helvetica-Bold',
-            borderPadding=(0, 0, 8, 0),
+            fontSize=16,
+            textColor=colors.HexColor('#4a4a4a'),
+            spaceAfter=20,
+            alignment=TA_CENTER
         ))
         
-        # Subsection
-        add_style(ParagraphStyle(
-            name='Subsection',
+        # Section heading
+        self.styles.add(ParagraphStyle(
+            name='SectionHeading',
+            parent=self.styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=12,
+            spaceBefore=20,
+            fontName='Helvetica-Bold'
+        ))
+        
+        # Subsection heading
+        self.styles.add(ParagraphStyle(
+            name='SubsectionHeading',
             parent=self.styles['Heading3'],
-            fontSize=13,
-            textColor=self.COLORS['medium'],
-            spaceAfter=10,
-            spaceBefore=14,
+            fontSize=12,
+            textColor=colors.HexColor('#34495e'),
+            spaceAfter=8,
+            spaceBefore=12,
             fontName='Helvetica-Bold'
         ))
         
         # Body text
-        add_style(ParagraphStyle(
-            name='BodyText',
-            parent=self.styles['Normal'],
+        self.styles.add(ParagraphStyle(
+            name='ReportBody',
+            parent=self.styles['BodyText'],
             fontSize=10,
-            textColor=self.COLORS['medium'],
-            spaceAfter=10,
-            leading=14,
-            fontName='Helvetica',
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=8,
             alignment=TA_JUSTIFY
         ))
         
-        # Label style
-        add_style(ParagraphStyle(
-            name='Label',
-            parent=self.styles['Normal'],
+        # Evidence style
+        self.styles.add(ParagraphStyle(
+            name='Evidence',
+            parent=self.styles['Code'],
             fontSize=9,
-            textColor=self.COLORS['lighter'],
-            spaceAfter=2,
-            fontName='Helvetica-Bold'
+            textColor=colors.HexColor('#c7254e'),
+            backColor=colors.HexColor('#f9f2f4'),
+            leftIndent=20,
+            spaceAfter=8
         ))
         
-        # Value style
-        add_style(ParagraphStyle(
-            name='Value',
-            parent=self.styles['Normal'],
-            fontSize=11,
-            textColor=self.COLORS['dark'],
-            spaceAfter=8,
-            fontName='Helvetica'
-        ))
-        
-    def generate_report(self, audit_id: str) -> BytesIO:
-        """
-        Generate PDF report for an audit
-        
-        Args:
-            audit_id: Audit ID (e.g., "AUD-000001")
-            
-        Returns:
-            BytesIO buffer containing PDF data
-        """
-        db = get_db_session()
-        try:
-            # Fetch data
-            audit = db.query(Audit).filter(Audit.audit_id == audit_id).first()
-            if not audit:
-                raise ValueError(f"Audit {audit_id} not found")
-                
-            config = db.query(Configuration).filter(
-                Configuration.id == audit.configuration_id
-            ).first()
-            
-            findings = db.query(Finding).filter(Finding.audit_id == audit.id).all()
-            
-            # Create PDF buffer
-            buffer = BytesIO()
-            
-            # Create document
-            doc = SimpleDocTemplate(
-                buffer,
-                pagesize=letter,
-                rightMargin=0.75*inch,
-                leftMargin=0.75*inch,
-                topMargin=0.75*inch,
-                bottomMargin=0.75*inch,
-                title=f"Security Audit Report - {audit_id}",
-                author="Tatva Network Security Auditor"
-            )
-            
-            # Build content
-            story = []
-            
-            # Cover page
-            story.extend(self._build_cover(audit, config))
-            story.append(PageBreak())
-            
-            # Executive summary
-            story.extend(self._build_executive_summary(audit, findings))
-            story.append(PageBreak())
-            
-            # Compliance overview
-            story.extend(self._build_compliance_section(audit, findings))
-            
-            # Findings
-            story.extend(self._build_findings_section(findings))
-            
-            # Build with custom canvas
-            doc.build(
-                story,
-                canvasmaker=lambda *args, **kwargs: ReportCanvas(
-                    *args, audit_id=audit_id, **kwargs
-                )
-            )
-            
-            buffer.seek(0)
-            return buffer
-            
-        finally:
-            db.close()
-            
-    def _build_cover(self, audit: Audit, config: Configuration) -> List:
-        """Build professional cover page"""
-        elements = []
-        
-        # Top spacing
-        elements.append(Spacer(1, 2.5*inch))
-        
-        # Title
-        elements.append(Paragraph(
-            "NETWORK SECURITY<br/>AUDIT REPORT",
-            self.styles['CoverTitle']
-        ))
-        
-        elements.append(Spacer(1, 0.4*inch))
-        
-        # Accent line
-        line = Drawing(2*inch, 2)
-        line.add(Line(0, 1, 2*inch, 1, strokeColor=self.COLORS['primary'], strokeWidth=3))
-        elements.append(line)
-        
-        elements.append(Spacer(1, 0.6*inch))
-        
-        # Report details
-        elements.append(Paragraph(
-            f"<b>Audit ID:</b> {audit.audit_id}",
-            self.styles['CoverInfo']
-        ))
-        
-        if config:
-            elements.append(Paragraph(
-                f"<b>Configuration:</b> {config.original_filename}",
-                self.styles['CoverInfo']
+        # Severity styles
+        for severity, color in [
+            ('CRITICAL', '#e74c3c'),
+            ('HIGH', '#e67e22'),
+            ('MEDIUM', '#f39c12'),
+            ('LOW', '#95a5a6')
+        ]:
+            self.styles.add(ParagraphStyle(
+                name=f'Severity{severity}',
+                parent=self.styles['BodyText'],
+                fontSize=10,
+                textColor=colors.HexColor(color),
+                fontName='Helvetica-Bold'
             ))
-            elements.append(Paragraph(
-                f"<b>Vendor:</b> {config.vendor or 'Unknown'}",
-                self.styles['CoverInfo']
-            ))
-        
-        elements.append(Spacer(1, 0.3*inch))
-        
-        elements.append(Paragraph(
-            f"<b>Generated:</b> {datetime.utcnow().strftime('%B %d, %Y at %H:%M UTC')}",
-            self.styles['CoverInfo']
-        ))
-        
-        elements.append(Paragraph(
-            f"<b>Status:</b> {audit.status}",
-            self.styles['CoverInfo']
-        ))
-        
-        # Footer
-        elements.append(Spacer(1, 1.5*inch))
-        elements.append(Paragraph(
-            "Tatva Network Security Compliance Auditor",
-            self.styles['CoverSubtitle']
-        ))
-        
-        return elements
-        
-    def _build_executive_summary(self, audit: Audit, findings: List[Finding]) -> List:
-        """Build executive summary section"""
-        elements = []
-        
-        elements.append(Paragraph("Executive Summary", self.styles['SectionTitle']))
-        
-        # Add accent line
-        line = Drawing(7*inch, 2)
-        line.add(Line(0, 0, 1*inch, 0, strokeColor=self.COLORS['primary'], strokeWidth=2))
-        elements.append(line)
-        elements.append(Spacer(1, 0.25*inch))
-        
-        # Overview paragraph
-        total = len(findings)
-        passed = sum(1 for f in findings if f.status == 'PASS')
-        failed = sum(1 for f in findings if f.status == 'FAIL')
-        warnings = sum(1 for f in findings if f.status == 'WARNING')
-        
-        overview_text = f"""
-        This report presents the results of an automated network security compliance audit
-        performed on the submitted configuration file. The audit evaluated {total} security 
-        controls across multiple domains including access control, encryption, authentication,
-        and network security protocols. The analysis identified {failed} non-compliant 
-        configuration{'s' if failed != 1 else ''} requiring immediate attention and {warnings} 
-        configuration{'s' if warnings != 1 else ''} flagged for review.
+    
+    def generate_executive_report(
+        self,
+        data: Dict,
+        output_path: Optional[str] = None
+    ) -> bytes:
         """
+        Generate executive summary report
         
-        elements.append(Paragraph(overview_text, self.styles['BodyText']))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # Key metrics table
-        elements.append(Paragraph("Key Metrics", self.styles['Subsection']))
-        
-        compliance_pct = (passed / total * 100) if total > 0 else 0
-        risk_level = audit.risk_level or 'N/A'
-        risk_score = f"{audit.risk_score:.1f}/10.0" if audit.risk_score else 'N/A'
-        
-        data = [
-            ['Metric', 'Value'],
-            ['Total Controls Evaluated', str(total)],
-            ['Compliant Controls', str(passed)],
-            ['Non-Compliant Controls', str(failed)],
-            ['Warnings', str(warnings)],
-            ['Compliance Score', f'{compliance_pct:.1f}%'],
-            ['Risk Level', risk_level],
-            ['Risk Score', risk_score],
-        ]
-        
-        table = Table(data, colWidths=[3.5*inch, 2.5*inch])
-        table.setStyle(TableStyle([
-            # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['primary']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
-            
-            # Data rows
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
-            ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.COLORS['medium']),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ('TOPPADDING', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
-        ]))
-        
-        elements.append(table)
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # Human review alert if needed
-        if audit.requires_human_review:
-            elements.append(self._build_review_alert(audit))
-        
-        return elements
-        
-    def _build_review_alert(self, audit: Audit) -> KeepTogether:
-        """Build human review alert box"""
-        elements = []
-        
-        elements.append(Spacer(1, 0.2*inch))
-        elements.append(Paragraph("⚠️ Manual Review Required", self.styles['Subsection']))
-        
-        confidence = audit.interpretation_confidence * 100 if audit.interpretation_confidence else 0
-        uninterpreted = audit.uninterpreted_lines_count or 0
-        total_lines = audit.total_lines_count or 0
-        uninterpreted_pct = (uninterpreted / total_lines * 100) if total_lines > 0 else 0
-        
-        alert_text = f"""
-        This configuration contains proprietary or uncommon syntax that could not be fully 
-        interpreted by automated analysis. A security expert should manually validate the 
-        findings to ensure accuracy and completeness.
-        <br/><br/>
-        <b>Interpretation Confidence:</b> {confidence:.1f}%<br/>
-        <b>Uninterpreted Lines:</b> {uninterpreted} of {total_lines} ({uninterpreted_pct:.1f}%)<br/>
-        <b>Reason:</b> {audit.review_reason or 'Interpretation uncertainty detected'}
+        Management-friendly high-level overview
         """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer if not output_path else output_path,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
         
-        alert_para = Paragraph(alert_text, self.styles['BodyText'])
+        story = []
         
-        # Create table for background color
-        table = Table([[alert_para]], colWidths=[6*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fef3c7')),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#f59e0b')),
-            ('LEFTPADDING', (0, 0), (-1, -1), 16),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 16),
-            ('TOPPADDING', (0, 0), (-1, -1), 16),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 16),
-        ]))
+        # Header
+        story.extend(self._create_header(data))
         
-        elements.append(table)
-        elements.append(Spacer(1, 0.2*inch))
+        # Executive Summary
+        story.append(Paragraph("Executive Summary", self.styles['SectionHeading']))
+        story.extend(self._create_executive_summary(data))
         
-        return KeepTogether(elements)
+        # Overall Posture
+        story.append(PageBreak())
+        story.append(Paragraph("Security Posture Overview", self.styles['SectionHeading']))
+        story.extend(self._create_posture_summary(data))
         
-    def _build_compliance_section(self, audit: Audit, findings: List[Finding]) -> List:
-        """Build compliance overview section"""
-        elements = []
+        # Key Findings
+        story.append(PageBreak())
+        story.append(Paragraph("Key Security Findings", self.styles['SectionHeading']))
+        story.extend(self._create_key_findings(data))
         
-        elements.append(Paragraph("Compliance Analysis", self.styles['SectionTitle']))
+        # Recommendations
+        story.append(PageBreak())
+        story.append(Paragraph("Priority Recommendations", self.styles['SectionHeading']))
+        story.extend(self._create_recommendations(data))
         
-        # Add accent line
-        line = Drawing(7*inch, 2)
-        line.add(Line(0, 0, 1*inch, 0, strokeColor=self.COLORS['primary'], strokeWidth=2))
-        elements.append(line)
-        elements.append(Spacer(1, 0.25*inch))
+        # Build PDF
+        doc.build(story, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
         
-        # Findings by status
-        elements.append(Paragraph("Results by Status", self.styles['Subsection']))
+        if not output_path:
+            pdf_content = buffer.getvalue()
+            buffer.close()
+            return pdf_content
+        return b''
+    
+    def generate_technical_report(
+        self,
+        data: Dict,
+        output_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Generate technical detailed report
         
-        status_counts = {
-            'PASS': sum(1 for f in findings if f.status == 'PASS'),
-            'FAIL': sum(1 for f in findings if f.status == 'FAIL'),
-            'WARNING': sum(1 for f in findings if f.status == 'WARNING'),
-            'NOT_APPLICABLE': sum(1 for f in findings if f.status == 'NOT_APPLICABLE'),
-        }
+        Comprehensive evidence-backed analysis
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer if not output_path else output_path,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
         
-        total = len(findings)
+        story = []
         
-        status_data = [['Status', 'Count', 'Percentage']]
-        for status, count in status_counts.items():
-            pct = (count / total * 100) if total > 0 else 0
-            status_data.append([status.replace('_', ' ').title(), str(count), f'{pct:.1f}%'])
+        # Header
+        story.extend(self._create_header(data))
         
-        table = Table(status_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['primary']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
-            
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.COLORS['medium']),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-        ]))
+        # Technical Summary
+        story.append(Paragraph("Technical Assessment Summary", self.styles['SectionHeading']))
+        story.extend(self._create_technical_summary(data))
         
-        elements.append(table)
-        elements.append(Spacer(1, 0.3*inch))
+        # Device Details
+        story.append(PageBreak())
+        story.append(Paragraph("Device Assessment Details", self.styles['SectionHeading']))
+        story.extend(self._create_device_details(data))
         
-        # Findings by severity
-        elements.append(Paragraph("Findings by Severity", self.styles['Subsection']))
+        # Detailed Findings
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Security Findings", self.styles['SectionHeading']))
+        story.extend(self._create_detailed_findings(data))
         
-        severity_counts = {
-            'CRITICAL': sum(1 for f in findings if f.severity == 'CRITICAL'),
-            'HIGH': sum(1 for f in findings if f.severity == 'HIGH'),
-            'MEDIUM': sum(1 for f in findings if f.severity == 'MEDIUM'),
-            'LOW': sum(1 for f in findings if f.severity == 'LOW'),
-        }
-        
-        severity_data = [['Severity', 'Count', 'Percentage']]
-        for severity, count in severity_counts.items():
-            pct = (count / total * 100) if total > 0 else 0
-            severity_data.append([severity.title(), str(count), f'{pct:.1f}%'])
-        
-        table = Table(severity_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['primary']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
-            
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.COLORS['medium']),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-        ]))
-        
-        elements.append(table)
-        elements.append(Spacer(1, 0.3*inch))
-        
-        return elements
-        
-    def _build_findings_section(self, findings: List[Finding]) -> List:
-        """Build detailed findings section"""
-        elements = []
-        
-        elements.append(PageBreak())
-        elements.append(Paragraph("Detailed Findings", self.styles['SectionTitle']))
-        
-        # Add accent line
-        line = Drawing(7*inch, 2)
-        line.add(Line(0, 0, 1*inch, 0, strokeColor=self.COLORS['primary'], strokeWidth=2))
-        elements.append(line)
-        elements.append(Spacer(1, 0.25*inch))
-        
-        # Group findings by severity
-        critical = [f for f in findings if f.severity == 'CRITICAL' and f.status == 'FAIL']
-        high = [f for f in findings if f.severity == 'HIGH' and f.status == 'FAIL']
-        medium = [f for f in findings if f.severity == 'MEDIUM' and f.status == 'FAIL']
-        low = [f for f in findings if f.severity == 'LOW' and f.status == 'FAIL']
-        warnings = [f for f in findings if f.status == 'WARNING']
-        
-        # Critical findings
-        if critical:
-            elements.extend(self._build_severity_group('Critical Findings', critical, self.COLORS['critical']))
-        
-        # High findings
-        if high:
-            elements.extend(self._build_severity_group('High Severity Findings', high, self.COLORS['high']))
-        
-        # Medium findings
-        if medium:
-            elements.extend(self._build_severity_group('Medium Severity Findings', medium, self.COLORS['medium_sev']))
-        
-        # Low findings
-        if low:
-            elements.extend(self._build_severity_group('Low Severity Findings', low, self.COLORS['low']))
-        
-        # Warnings
-        if warnings:
-            elements.extend(self._build_severity_group('Warnings', warnings, self.COLORS['warning']))
-        
-        # If no failures, show success message
-        if not (critical or high or medium or low or warnings):
-            elements.append(Paragraph(
-                "✓ All security controls passed compliance checks. No issues found.",
-                self.styles['BodyText']
-            ))
-        
-        return elements
-        
-    def _build_severity_group(self, title: str, findings: List[Finding], color) -> List:
-        """Build a group of findings by severity"""
-        elements = []
-        
-        elements.append(Spacer(1, 0.2*inch))
-        elements.append(Paragraph(f"{title} ({len(findings)})", self.styles['Subsection']))
-        elements.append(Spacer(1, 0.1*inch))
-        
-        for finding in findings:
-            elements.extend(self._build_finding_entry(finding, color))
-        
-        return elements
-        
-    def _build_finding_entry(self, finding: Finding, color) -> List:
-        """Build a single finding entry"""
-        elements = []
-        
-        # Finding title
-        title_text = f"<b>{finding.rule_id}:</b> {finding.title}"
-        elements.append(Paragraph(title_text, self.styles['Value']))
-        
-        # Description
-        if finding.description:
-            elements.append(Paragraph(finding.description, self.styles['BodyText']))
-        
-        # Details table
-        details = []
-        
-        if finding.expected:
-            details.append(['Expected', finding.expected])
-        if finding.actual:
-            details.append(['Actual', finding.actual])
-        if finding.field_path:
-            details.append(['Configuration Path', finding.field_path])
-        
-        if details:
-            table = Table(details, colWidths=[1.2*inch, 4.8*inch])
-            table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('FONTNAME', (1, 0), (1, -1), 'Courier'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('TEXTCOLOR', (0, 0), (0, -1), self.COLORS['light']),
-                ('TEXTCOLOR', (1, 0), (1, -1), self.COLORS['medium']),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            elements.append(table)
+        # Evidence
+        story.append(PageBreak())
+        story.append(Paragraph("Evidence & Provenance", self.styles['SectionHeading']))
+        story.extend(self._create_evidence_section(data))
         
         # Remediation
-        if finding.remediation:
-            elements.append(Paragraph("<b>Remediation:</b>", self.styles['Label']))
-            elements.append(Paragraph(finding.remediation, self.styles['BodyText']))
+        story.append(PageBreak())
+        story.append(Paragraph("Remediation Guidance", self.styles['SectionHeading']))
+        story.extend(self._create_remediation_section(data))
         
-        # Separator
-        separator = Drawing(6*inch, 1)
-        separator.add(Line(0, 0, 6*inch, 0, strokeColor=colors.HexColor('#e2e8f0'), strokeWidth=0.5))
-        elements.append(separator)
-        elements.append(Spacer(1, 0.15*inch))
+        doc.build(story, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
+        
+        if not output_path:
+            pdf_content = buffer.getvalue()
+            buffer.close()
+            return pdf_content
+        return b''
+    
+    def generate_compliance_report(
+        self,
+        data: Dict,
+        output_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Generate compliance framework report
+        
+        Framework-oriented compliance assessment
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer if not output_path else output_path,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        story = []
+        
+        # Header
+        story.extend(self._create_header(data))
+        
+        # Compliance Overview
+        story.append(Paragraph("Compliance Assessment Overview", self.styles['SectionHeading']))
+        story.extend(self._create_compliance_overview(data))
+        
+        # Framework Results
+        story.append(PageBreak())
+        story.append(Paragraph("Framework Assessment Results", self.styles['SectionHeading']))
+        story.extend(self._create_framework_results(data))
+        
+        # Control Details
+        story.append(PageBreak())
+        story.append(Paragraph("Control Assessment Details", self.styles['SectionHeading']))
+        story.extend(self._create_control_details(data))
+        
+        # Compliance Gaps
+        story.append(PageBreak())
+        story.append(Paragraph("Compliance Gaps & Recommendations", self.styles['SectionHeading']))
+        story.extend(self._create_compliance_gaps(data))
+        
+        doc.build(story, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
+        
+        if not output_path:
+            pdf_content = buffer.getvalue()
+            buffer.close()
+            return pdf_content
+        return b''
+    
+    def _create_header(self, data: Dict) -> List:
+        """Create report header"""
+        elements = []
+        
+        # Title
+        title = data.get('report_title', 'Security Audit Report')
+        elements.append(Paragraph(title, self.styles['ReportTitle']))
+        
+        # Subtitle
+        subtitle = f"Generated on {datetime.utcnow().strftime('%B %d, %Y')}"
+        elements.append(Paragraph(subtitle, self.styles['ReportSubtitle']))
+        
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Metadata table
+        metadata = data.get('metadata', {})
+        meta_data = [
+            ['Report ID:', data.get('report_id', 'N/A')],
+            ['Organization:', metadata.get('organization_name', 'N/A')],
+            ['Assessment Period:', metadata.get('assessment_period', 'N/A')],
+            ['Generated By:', metadata.get('generated_by', 'VAJRA CORE')],
+        ]
+        
+        meta_table = Table(meta_data, colWidths=[2*inch, 4*inch])
+        meta_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#34495e')),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(meta_table)
+        elements.append(Spacer(1, 0.3*inch))
         
         return elements
-
-
-# Public API
-def generate_audit_report(audit_id: str) -> BytesIO:
-    """
-    Generate PDF report for an audit
     
-    Args:
-        audit_id: Audit ID (e.g., "AUD-000001")
+    def _create_executive_summary(self, data: Dict) -> List:
+        """Create executive summary section"""
+        elements = []
         
-    Returns:
-        BytesIO buffer containing PDF data
-    """
-    generator = AuditReportGenerator()
-    return generator.generate_report(audit_id)
+        metrics = data.get('metrics', {})
+        
+        # Summary table
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Total Devices Assessed', str(metrics.get('total_devices', 0))],
+            ['Configurations Analyzed', str(metrics.get('total_configurations', 0))],
+            ['Security Audits Performed', str(metrics.get('total_audits', 0))],
+            ['Overall Compliance Score', f"{metrics.get('compliance_score', 0):.1f}%"],
+            ['Risk Level', metrics.get('risk_level', 'UNKNOWN')],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(summary_table)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Findings summary
+        findings = data.get('findings_summary', {})
+        findings_data = [
+            ['Severity', 'Count'],
+            ['CRITICAL', str(findings.get('critical', 0))],
+            ['HIGH', str(findings.get('high', 0))],
+            ['MEDIUM', str(findings.get('medium', 0))],
+            ['LOW', str(findings.get('low', 0))],
+        ]
+        
+        findings_table = Table(findings_data, colWidths=[2.5*inch, 1.5*inch])
+        findings_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e74c3c')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#fee')),
+            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#fed')),
+            ('BACKGROUND', (0, 3), (-1, 3), colors.HexColor('#ffd')),
+            ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#efe')),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(Paragraph("Findings by Severity", self.styles['SubsectionHeading']))
+        elements.append(findings_table)
+        
+        return elements
+    
+    def _create_posture_summary(self, data: Dict) -> List:
+        """Create security posture summary"""
+        elements = []
+        
+        posture = data.get('posture', {})
+        
+        text = f"""
+        The overall security posture score is <b>{posture.get('score', 0):.1f}</b> out of 100.
+        
+        This score is calculated based on compliance assessment, risk analysis, 
+        configuration drift, and remediation status across all assessed devices.
+        
+        <b>Posture Model:</b> VAJRA CORE Posture Assessment v1.0
+        """
+        
+        elements.append(Paragraph(text, self.styles['ReportBody']))
+        elements.append(Spacer(1, 0.1*inch))
+        
+        # Posture breakdown
+        breakdown = [
+            ['Component', 'Score', 'Weight'],
+            ['Compliance', f"{posture.get('compliance_score', 0):.1f}%", '40%'],
+            ['Risk Management', f"{posture.get('risk_score', 0):.1f}%", '30%'],
+            ['Configuration Stability', f"{posture.get('drift_score', 0):.1f}%", '20%'],
+            ['Remediation Status', f"{posture.get('remediation_score', 0):.1f}%", '10%'],
+        ]
+        
+        breakdown_table = Table(breakdown, colWidths=[2.5*inch, 1.5*inch, 1*inch])
+        breakdown_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ecc71')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(breakdown_table)
+        
+        return elements
+    
+    def _create_key_findings(self, data: Dict) -> List:
+        """Create key findings section"""
+        elements = []
+        
+        findings = data.get('findings', [])
+        
+        # Filter critical and high findings
+        critical_findings = [f for f in findings if f.get('severity') == 'CRITICAL']
+        high_findings = [f for f in findings if f.get('severity') == 'HIGH']
+        
+        # Critical findings
+        if critical_findings:
+            elements.append(Paragraph("Critical Findings", self.styles['SubsectionHeading']))
+            for finding in critical_findings[:5]:  # Limit to top 5
+                elements.extend(self._format_finding(finding))
+        
+        # High findings
+        if high_findings:
+            elements.append(Spacer(1, 0.1*inch))
+            elements.append(Paragraph("High Priority Findings", self.styles['SubsectionHeading']))
+            for finding in high_findings[:5]:  # Limit to top 5
+                elements.extend(self._format_finding(finding))
+        
+        return elements
+    
+    def _format_finding(self, finding: Dict) -> List:
+        """Format a single finding"""
+        elements = []
+        
+        severity = finding.get('severity', 'UNKNOWN')
+        title = finding.get('title', 'Untitled Finding')
+        description = finding.get('description', 'No description available')
+        
+        # Finding header
+        finding_text = f"""
+        <b>[{severity}] {title}</b><br/>
+        <i>Finding ID: {finding.get('finding_id', 'N/A')}</i>
+        """
+        elements.append(Paragraph(finding_text, self.styles[f'Severity{severity}']))
+        
+        # Description
+        elements.append(Paragraph(description, self.styles['ReportBody']))
+        
+        # Device affected
+        if finding.get('device_id'):
+            device_text = f"<b>Affected Device:</b> {finding.get('device_id')}"
+            elements.append(Paragraph(device_text, self.styles['ReportBody']))
+        
+        # Framework/Control
+        if finding.get('framework'):
+            framework_text = f"<b>Framework:</b> {finding.get('framework')} - {finding.get('control', 'N/A')}"
+            elements.append(Paragraph(framework_text, self.styles['ReportBody']))
+        
+        elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _create_recommendations(self, data: Dict) -> List:
+        """Create recommendations section"""
+        elements = []
+        
+        recommendations = data.get('recommendations', [])
+        
+        for i, rec in enumerate(recommendations[:10], 1):
+            rec_text = f"""
+            <b>{i}. {rec.get('title', 'Recommendation')}</b><br/>
+            Priority: <b>{rec.get('priority', 'MEDIUM')}</b><br/>
+            {rec.get('description', 'No description')}
+            """
+            elements.append(Paragraph(rec_text, self.styles['ReportBody']))
+            elements.append(Spacer(1, 0.15*inch))
+        
+        return elements
+    
+    def _create_technical_summary(self, data: Dict) -> List:
+        """Create technical summary"""
+        elements = []
+        
+        # Similar to executive but with more technical detail
+        elements.extend(self._create_executive_summary(data))
+        
+        return elements
+    
+    def _create_device_details(self, data: Dict) -> List:
+        """Create device details section"""
+        elements = []
+        
+        devices = data.get('devices', [])
+        
+        for device in devices:
+            device_data = [
+                ['Property', 'Value'],
+                ['Device ID', device.get('device_id', 'N/A')],
+                ['Vendor', device.get('vendor', 'N/A')],
+                ['Model', device.get('model', 'N/A')],
+                ['Platform', device.get('platform', 'N/A')],
+                ['Configuration Hash', device.get('config_hash', 'N/A')[:16] + '...'],
+                ['Last Assessment', device.get('last_audit', 'N/A')],
+                ['Compliance Score', f"{device.get('compliance_score', 0):.1f}%"],
+                ['Risk Level', device.get('risk_level', 'N/A')],
+            ]
+            
+            device_table = Table(device_data, colWidths=[2*inch, 4*inch])
+            device_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            
+            elements.append(device_table)
+            elements.append(Spacer(1, 0.2*inch))
+        
+        return elements
+    
+    def _create_detailed_findings(self, data: Dict) -> List:
+        """Create detailed findings section"""
+        elements = []
+        
+        findings = data.get('findings', [])
+        
+        for finding in findings:
+            # Use existing _format_finding
+            elements.extend(self._format_finding(finding))
+            
+            # Add evidence if available
+            evidence = finding.get('evidence')
+            if evidence:
+                elements.append(Paragraph("<b>Evidence:</b>", self.styles['ReportBody']))
+                evidence_text = str(evidence)[:200] + "..." if len(str(evidence)) > 200 else str(evidence)
+                elements.append(Paragraph(evidence_text, self.styles['Evidence']))
+            
+            elements.append(Spacer(1, 0.15*inch))
+        
+        return elements
+    
+    def _create_evidence_section(self, data: Dict) -> List:
+        """Create evidence and provenance section"""
+        elements = []
+        
+        text = """
+        All findings in this report are backed by evidence extracted from 
+        actual device configurations. Evidence includes configuration line numbers,
+        extracted configuration snippets, and parser provenance information.
+        
+        <b>Security Note:</b> Sensitive information (passwords, keys, secrets) 
+        has been sanitized and does not appear in this report.
+        """
+        
+        elements.append(Paragraph(text, self.styles['ReportBody']))
+        
+        return elements
+    
+    def _create_remediation_section(self, data: Dict) -> List:
+        """Create remediation guidance section"""
+        elements = []
+        
+        remediations = data.get('remediations', [])
+        
+        for remediation in remediations:
+            rem_text = f"""
+            <b>Finding:</b> {remediation.get('finding_title', 'N/A')}<br/>
+            <b>Recommendation:</b> {remediation.get('recommendation', 'N/A')}<br/>
+            <b>Expected Improvement:</b> {remediation.get('expected_improvement', 'N/A')}
+            """
+            elements.append(Paragraph(rem_text, self.styles['ReportBody']))
+            elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _create_compliance_overview(self, data: Dict) -> List:
+        """Create compliance overview"""
+        elements = []
+        
+        frameworks = data.get('frameworks', [])
+        
+        framework_data = [['Framework', 'Version', 'Controls Assessed', 'Pass Rate']]
+        
+        for framework in frameworks:
+            framework_data.append([
+                framework.get('name', 'N/A'),
+                framework.get('version', 'N/A'),
+                str(framework.get('controls_assessed', 0)),
+                f"{framework.get('pass_rate', 0):.1f}%"
+            ])
+        
+        framework_table = Table(framework_data, colWidths=[2*inch, 1*inch, 1.5*inch, 1*inch])
+        framework_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9b59b6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(framework_table)
+        
+        return elements
+    
+    def _create_framework_results(self, data: Dict) -> List:
+        """Create framework results section"""
+        elements = []
+        
+        # Similar to compliance overview but more detailed
+        elements.extend(self._create_compliance_overview(data))
+        
+        return elements
+    
+    def _create_control_details(self, data: Dict) -> List:
+        """Create control assessment details"""
+        elements = []
+        
+        controls = data.get('controls', [])
+        
+        for control in controls:
+            control_text = f"""
+            <b>Control:</b> {control.get('control_id', 'N/A')} - {control.get('title', 'N/A')}<br/>
+            <b>Result:</b> {control.get('result', 'N/A')}<br/>
+            <b>Evidence:</b> {control.get('evidence_summary', 'N/A')}
+            """
+            elements.append(Paragraph(control_text, self.styles['ReportBody']))
+            elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _create_compliance_gaps(self, data: Dict) -> List:
+        """Create compliance gaps section"""
+        elements = []
+        
+        gaps = data.get('compliance_gaps', [])
+        
+        for gap in gaps:
+            gap_text = f"""
+            <b>Gap:</b> {gap.get('title', 'N/A')}<br/>
+            <b>Impact:</b> {gap.get('impact', 'N/A')}<br/>
+            <b>Recommendation:</b> {gap.get('recommendation', 'N/A')}
+            """
+            elements.append(Paragraph(gap_text, self.styles['ReportBody']))
+            elements.append(Spacer(1, 0.1*inch))
+        
+        return elements
+    
+    def _add_page_number(self, canvas, doc):
+        """Add page number to each page"""
+        page_num = canvas.getPageNumber()
+        text = f"Page {page_num}"
+        canvas.saveState()
+        canvas.setFont('Helvetica', 9)
+        canvas.drawRightString(
+            self.page_width - 72,
+            30,
+            text
+        )
+        canvas.restoreState()
+
+
+# Global instance
+pdf_generator = PDFReportGenerator()

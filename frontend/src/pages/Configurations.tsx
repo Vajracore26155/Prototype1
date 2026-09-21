@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { FileText, Calendar, Shield, Play, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { listConfigurations, runAudit } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import type { Configuration } from '../types';
 import BackButton from '../components/BackButton';
 
@@ -10,6 +12,8 @@ const Configurations = () => {
   const [loading, setLoading] = useState(true);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
   
   useEffect(() => {
     loadConfigurations();
@@ -21,8 +25,9 @@ const Configurations = () => {
       if (response.success && response.data) {
         setConfigurations(response.data.configurations);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load configurations:', error);
+      showError('Failed to Load Configurations', 'Could not retrieve configuration list. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -30,15 +35,35 @@ const Configurations = () => {
   
   const handleRunAudit = async (configId: string) => {
     setRunningAudit(configId);
+    showInfo('Starting Audit', 'Running security compliance audit...');
+    
+    console.log(`[DEBUG] Starting audit for config: ${configId}`);
+    
     try {
+      console.log(`[DEBUG] Calling runAudit API...`);
       const response = await runAudit(configId);
+      console.log(`[DEBUG] API Response:`, response);
+      
       if (response.success && response.data) {
+        showSuccess('Audit Complete!', 'Security audit completed successfully.');
         // Navigate to audit results
         navigate(`/audit/${response.data.audit_id}`);
+      } else {
+        console.error('[DEBUG] API returned success=false:', response);
+        showError('Audit Failed', response.error?.message || 'Unknown error occurred');
       }
-    } catch (error) {
-      console.error('Failed to run audit:', error);
-      alert('Failed to run audit. Please try again.');
+    } catch (error: any) {
+      console.error('[DEBUG] Exception caught:', error);
+      console.error('[DEBUG] Error response:', error.response);
+      console.error('[DEBUG] Error data:', error.response?.data);
+      console.error('[DEBUG] Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.detail?.error?.message 
+        || error.response?.data?.detail 
+        || error.message 
+        || 'Could not run security audit. Please try again.';
+      
+      showError('Audit Failed', errorMessage);
     } finally {
       setRunningAudit(null);
     }

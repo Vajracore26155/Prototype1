@@ -1,6 +1,5 @@
-"""
-PDF Report Generation Module
-"""
-from .pdf_generator import generate_audit_report
+"""Reports Module"""
+from .templates import ReportTemplate, TemplateLibrary, ReportType, ReportFormat
+from .scheduler import ReportScheduler, report_scheduler
 
-__all__ = ['generate_audit_report']
+__all__ = ["ReportTemplate", "TemplateLibrary", "ReportType", "ReportFormat", "ReportScheduler", "report_scheduler"]

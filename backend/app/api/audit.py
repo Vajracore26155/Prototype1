@@ -5,16 +5,122 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from io import BytesIO
 
-from app.database import get_db, Configuration, Audit, Finding
+from app.database import get_db, Configuration, Audit, Finding, User, SecurityAuditLog, Organization
 from app.findings import run_configuration_audit
-from app.reports import generate_audit_report
+from app.auth.dependencies import require_permission
+from app.auth.permissions import Permission
+from app.reports.pdf_generator import PDFReportGenerator
 
 router = APIRouter()
 
 
+def generate_log_id(db: Session) -> str:
+    """Generate unique audit log ID"""
+    count = db.query(SecurityAuditLog).count()
+    return f"LOG-{count + 1:06d}"
+
+
+def generate_audit_report(audit_id: str, db: Session) -> BytesIO:
+    """
+    Generate PDF report for an audit
+    
+    Args:
+        audit_id: Audit ID to generate report for
+        db: Database session
+        
+    Returns:
+        BytesIO buffer containing PDF content
+    """
+    from datetime import datetime
+    from app.database import Organization
+    
+    # Get audit with all data
+    audit = db.query(Audit).filter(Audit.audit_id == audit_id).first()
+    if not audit:
+        raise ValueError(f"Audit {audit_id} not found")
+    
+    # Get configuration
+    config = db.query(Configuration).filter(Configuration.id == audit.configuration_id).first()
+    
+    # Get organization
+    org = db.query(Organization).filter(Organization.id == config.organization_id).first() if config else None
+    
+    # Get findings
+    findings = db.query(Finding).filter(Finding.audit_id == audit.id).all()
+    
+    # Count findings by severity
+    critical_findings = [f for f in findings if f.severity == "CRITICAL" and f.status == "FAIL"]
+    high_findings = [f for f in findings if f.severity == "HIGH" and f.status == "FAIL"]
+    medium_findings = [f for f in findings if f.severity == "MEDIUM" and f.status == "FAIL"]
+    low_findings = [f for f in findings if f.severity == "LOW" and f.status == "FAIL"]
+    
+    # Prepare data for PDF generator
+    report_data = {
+        "report_title": "Security Audit Report",
+        "report_id": f"RPT-{audit.audit_id}",
+        "audit_id": audit.audit_id,
+        "config_id": config.config_id if config else "Unknown",
+        "config_filename": config.original_filename if config else "Unknown",
+        "vendor": config.vendor if config else "Unknown",
+        "audit_date": audit.completed_at.strftime("%Y-%m-%d %H:%M:%S") if audit.completed_at else audit.started_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "compliance_score": audit.compliance_score or 0,
+        "risk_score": audit.risk_score or 0,
+        "risk_level": audit.risk_level or "UNKNOWN",
+        "passed_count": audit.passed_count or 0,
+        "failed_count": audit.failed_count or 0,
+        "warning_count": audit.warning_count or 0,
+        "total_findings": len(findings),
+        "metadata": {
+            "organization_name": org.name if org else "Unknown Organization",
+            "assessment_period": audit.started_at.strftime("%B %d, %Y") if audit.started_at else datetime.utcnow().strftime("%B %d, %Y"),
+            "generated_by": "VAJRA CORE System"
+        },
+        "findings": [
+            {
+                "finding_id": f.finding_id,
+                "rule_id": f.rule_id,
+                "title": f.title,
+                "description": f.description or "No description available",
+                "severity": f.severity,
+                "status": f.status,
+                "expected": f.expected or "N/A",
+                "actual": f.actual or "N/A",
+                "field_path": f.field_path or "",
+                "evidence": f.evidence_text if hasattr(f, 'evidence_text') else "",
+                "remediation": f.remediation or "No remediation guidance available",
+                "risk_score": f.risk_score if hasattr(f, 'risk_score') else 0
+            }
+            for f in findings
+        ],
+        "findings_by_severity": {
+            "critical": len(critical_findings),
+            "high": len(high_findings),
+            "medium": len(medium_findings),
+            "low": len(low_findings)
+        },
+        "summary": {
+            "total_controls_assessed": len(findings),
+            "passed": audit.passed_count or 0,
+            "failed": audit.failed_count or 0,
+            "warnings": audit.warning_count or 0,
+            "compliance_percentage": audit.compliance_score or 0,
+            "risk_level": audit.risk_level or "UNKNOWN"
+        }
+    }
+    
+    # Generate PDF
+    pdf_gen = PDFReportGenerator()
+    pdf_bytes = pdf_gen.generate_technical_report(report_data)
+    
+    # Return as BytesIO buffer
+    return BytesIO(pdf_bytes)
+
+
 @router.get("/audits/review-queue")
 async def get_audits_needing_review(
+    current_user: User = Depends(require_permission(Permission.AUDIT_VIEW)),
     db: Session = Depends(get_db)
 ):
     """
@@ -26,9 +132,15 @@ async def get_audits_needing_review(
     - Pending AI mappings requiring approval
     """
     try:
-        audits = db.query(Audit).filter(
+        # Filter by organization for multi-tenancy
+        query = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Configuration.organization_id == current_user.organization_id,
             Audit.requires_human_review == True
-        ).order_by(Audit.started_at.desc()).all()
+        ).order_by(Audit.started_at.desc())
+        
+        audits = query.all()
         
         result = []
         for audit in audits:
@@ -78,6 +190,7 @@ async def get_audits_needing_review(
 @router.post("/audits/{config_id}/run")
 async def run_audit(
     config_id: str,
+    current_user: User = Depends(require_permission(Permission.AUDIT_RUN)),
     db: Session = Depends(get_db)
 ):
     """
@@ -92,9 +205,10 @@ async def run_audit(
     6. Create remediation commands
     """
     try:
-        # Check if configuration exists
+        # Check if configuration exists and belongs to user's organization
         config = db.query(Configuration).filter(
-            Configuration.config_id == config_id
+            Configuration.config_id == config_id,
+            Configuration.organization_id == current_user.organization_id
         ).first()
         
         if not config:
@@ -111,6 +225,23 @@ async def run_audit(
         
         # Run audit
         audit = run_configuration_audit(config_id)
+        
+        # Log security event
+        log = SecurityAuditLog(
+            log_id=generate_log_id(db),
+            user_id=current_user.id,
+            organization_id=current_user.organization_id,
+            event_type="AUDIT",
+            action="EXECUTE",
+            result="SUCCESS",
+            resource_type="audit",
+            resource_id=audit.audit_id,
+            details={"config_id": config_id, "audit_id": audit.audit_id},
+            ip_address="",  # Will be filled by middleware
+            user_agent=""
+        )
+        db.add(log)
+        db.commit()
         
         return {
             "success": True,
@@ -148,13 +279,20 @@ async def run_audit(
 @router.get("/audits/{audit_id}")
 async def get_audit(
     audit_id: str,
+    current_user: User = Depends(require_permission(Permission.AUDIT_VIEW)),
     db: Session = Depends(get_db)
 ):
     """
     Get audit details
     """
     try:
-        audit = db.query(Audit).filter(Audit.audit_id == audit_id).first()
+        # Get audit with organization check
+        audit = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Audit.audit_id == audit_id,
+            Configuration.organization_id == current_user.organization_id
+        ).first()
         
         if not audit:
             raise HTTPException(
@@ -219,57 +357,80 @@ async def get_audit(
 
 @router.get("/dashboard/summary")
 async def get_dashboard_summary(
+    current_user: User = Depends(require_permission(Permission.AUDIT_VIEW)),
     db: Session = Depends(get_db)
 ):
     """
     Get dashboard summary statistics
     """
     try:
-        # Count configurations
-        total_configs = db.query(Configuration).count()
+        # Count configurations in organization
+        total_configs = db.query(Configuration).filter(
+            Configuration.organization_id == current_user.organization_id
+        ).count()
         
-        # Count audits
-        total_audits = db.query(Audit).count()
+        # Count audits for organization
+        total_audits = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Configuration.organization_id == current_user.organization_id
+        ).count()
         
-        # Calculate average compliance score
-        avg_compliance = db.query(func.avg(Audit.compliance_score)).filter(
-            Audit.status == "COMPLETED"
+        # Calculate average compliance score for organization
+        avg_compliance = db.query(func.avg(Audit.compliance_score)).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Audit.status == "COMPLETED",
+            Configuration.organization_id == current_user.organization_id
         ).scalar() or 0
         
-        # Count findings by severity
-        critical = db.query(Finding).filter(
+        # Count findings by severity for organization
+        base_finding_query = db.query(Finding).join(
+            Audit, Finding.audit_id == Audit.id
+        ).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Configuration.organization_id == current_user.organization_id
+        )
+        
+        critical = base_finding_query.filter(
             Finding.severity == "CRITICAL",
             Finding.status == "FAIL"
         ).count()
         
-        high = db.query(Finding).filter(
+        high = base_finding_query.filter(
             Finding.severity == "HIGH",
             Finding.status == "FAIL"
         ).count()
         
-        medium = db.query(Finding).filter(
+        medium = base_finding_query.filter(
             Finding.severity == "MEDIUM",
             Finding.status == "FAIL"
         ).count()
         
-        low = db.query(Finding).filter(
+        low = base_finding_query.filter(
             Finding.severity == "LOW",
             Finding.status == "FAIL"
         ).count()
         
         # Count passed controls
-        passed = db.query(Finding).filter(Finding.status == "PASS").count()
+        passed = base_finding_query.filter(Finding.status == "PASS").count()
         
-        # Vendor distribution
+        # Vendor distribution for organization
         vendor_dist = db.query(
             Configuration.vendor,
             func.count(Configuration.id)
+        ).filter(
+            Configuration.organization_id == current_user.organization_id
         ).group_by(Configuration.vendor).all()
         
         vendor_distribution = {vendor: count for vendor, count in vendor_dist if vendor}
         
-        # Count audits needing human review
-        audits_needing_review = db.query(Audit).filter(
+        # Count audits needing human review for organization
+        audits_needing_review = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Configuration.organization_id == current_user.organization_id,
             Audit.requires_human_review == True
         ).count()
         
@@ -312,6 +473,7 @@ async def get_dashboard_summary(
 @router.get("/audits/{audit_id}/report")
 async def download_audit_report(
     audit_id: str,
+    current_user: User = Depends(require_permission(Permission.REPORT_VIEW)),
     db: Session = Depends(get_db)
 ):
     """
@@ -325,8 +487,13 @@ async def download_audit_report(
     - Human intervention alerts (if applicable)
     """
     try:
-        # Check if audit exists
-        audit = db.query(Audit).filter(Audit.audit_id == audit_id).first()
+        # Check if audit exists and belongs to organization
+        audit = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Audit.audit_id == audit_id,
+            Configuration.organization_id == current_user.organization_id
+        ).first()
         
         if not audit:
             raise HTTPException(
@@ -346,7 +513,24 @@ async def download_audit_report(
         ).first()
         
         # Generate PDF report
-        pdf_buffer = generate_audit_report(audit_id)
+        pdf_buffer = generate_audit_report(audit_id, db)
+        
+        # Log security event
+        log = SecurityAuditLog(
+            log_id=generate_log_id(db),
+            user_id=current_user.id,
+            organization_id=current_user.organization_id,
+            event_type="REPORT",
+            action="DOWNLOAD",
+            result="SUCCESS",
+            resource_type="audit",
+            resource_id=audit_id,
+            details={"audit_id": audit_id, "report_type": "pdf"},
+            ip_address="",
+            user_agent=""
+        )
+        db.add(log)
+        db.commit()
         
         # Create filename
         config_name = config.original_filename.replace('.', '_') if config else 'unknown'

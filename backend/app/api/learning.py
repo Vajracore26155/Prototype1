@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 
-from app.database import get_db, LearnedMapping
+from app.database import get_db, LearnedMapping, User
 from app.adaptive import interpret_unknown_config, get_learning_engine
+from app.auth.dependencies import require_permission
+from app.auth.permissions import Permission
 
 router = APIRouter()
 
@@ -39,6 +41,7 @@ class UpdateMappingRequest(BaseModel):
 @router.post("/learning/interpret")
 async def interpret_configuration(
     request: InterpretRequest,
+    current_user: User = Depends(require_permission(Permission.AI_INTERPRET)),
     db: Session = Depends(get_db)
 ):
     """
@@ -139,6 +142,7 @@ async def interpret_configuration(
 
 @router.get("/learning/pending")
 async def get_pending_mappings(
+    current_user: User = Depends(require_permission(Permission.AI_REVIEW)),
     db: Session = Depends(get_db)
 ):
     """
@@ -184,6 +188,7 @@ async def get_pending_mappings(
 @router.post("/learning/mapping")
 async def accept_mapping(
     request: AcceptMappingRequest,
+    current_user: User = Depends(require_permission(Permission.AI_APPROVE)),
     db: Session = Depends(get_db)
 ):
     """
@@ -200,7 +205,7 @@ async def accept_mapping(
             confidence=request.confidence,
             vendor=request.vendor,
             approved=True,
-            approved_by=request.approved_by
+            approved_by=current_user.email
         )
         
         return {
@@ -227,6 +232,7 @@ async def accept_mapping(
 @router.post("/learning/mapping/{mapping_id}/reject")
 async def reject_mapping(
     mapping_id: str,
+    current_user: User = Depends(require_permission(Permission.AI_REJECT)),
     db: Session = Depends(get_db)
 ):
     """
@@ -274,6 +280,7 @@ async def reject_mapping(
 async def update_mapping(
     mapping_id: str,
     request: UpdateMappingRequest,
+    current_user: User = Depends(require_permission(Permission.AI_APPROVE)),
     db: Session = Depends(get_db)
 ):
     """

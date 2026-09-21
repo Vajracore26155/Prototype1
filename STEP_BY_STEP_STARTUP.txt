@@ -1,0 +1,280 @@
+================================================================================
+STEP-BY-STEP STARTUP GUIDE
+================================================================================
+
+TOTAL TIME: ~2 minutes
+
+================================================================================
+STEP 1: Open First Terminal (Backend)
+================================================================================
+
+1. Open PowerShell or Command Prompt
+2. Navigate to project:
+   
+   cd e:\Study\SIH2026\Prototype1
+
+3. Go to backend directory:
+   
+   cd backend
+
+4. Copy & paste this command:
+   
+   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+5. Wait for message:
+   
+   ✅ [STARTUP] Application ready!
+   ✅ Uvicorn running on http://127.0.0.1:8000
+
+   [DO NOT CLOSE THIS TERMINAL - Leave it running]
+
+================================================================================
+STEP 2: Open Second Terminal (Frontend)
+================================================================================
+
+1. Open ANOTHER PowerShell or Command Prompt window
+2. Navigate to project:
+   
+   cd e:\Study\SIH2026\Prototype1
+
+3. Go to frontend directory:
+   
+   cd frontend
+
+4. Copy & paste this command:
+   
+   npm run dev
+
+5. Wait for message:
+   
+   ✅ ➜  Local:   http://localhost:5173/
+   ✅ ➜  press h to show help
+
+   [DO NOT CLOSE THIS TERMINAL - Leave it running]
+
+================================================================================
+STEP 3: Open Browser and Test
+================================================================================
+
+1. Open any web browser (Chrome, Firefox, Edge, etc.)
+
+2. Go to this URL:
+   
+   http://localhost:5173
+
+3. You should see:
+   ✅ VAJRA Security System login page
+   ✅ Navigation menu
+   ✅ Professional UI
+
+4. Login with admin account:
+   
+   Email:    mayankparab4811@gmail.com
+   Password: Admin123
+
+5. After login, you should see:
+   ✅ Admin dashboard
+   ✅ Vendor requests section
+   ✅ System menu
+
+================================================================================
+STEP 4: Verify Email System (Optional)
+================================================================================
+
+If you want to test OTP emails:
+
+1. In the backend terminal, look for messages like:
+   
+   [SUCCESS] Email sent successfully to [email]
+
+2. This means emails are being sent via Gmail SMTP
+
+3. Check inbox at: mayankparab4811@gmail.com
+   (Emails from: noreply@vajra-security.com)
+
+================================================================================
+STEP 5: Keep Both Running
+================================================================================
+
+Backend Terminal: ✅ Running (Ctrl+C to stop)
+Frontend Terminal: ✅ Running (Ctrl+C to stop)
+Browser: ✅ Open to http://localhost:5173
+
+BOTH MUST STAY RUNNING FOR THE SYSTEM TO WORK
+
+================================================================================
+TESTING THE SYSTEM
+================================================================================
+
+✅ Test 1: Admin Login
+   - Login page visible
+   - Credentials work
+   - Dashboard loads
+
+✅ Test 2: View Vendor Requests
+   - Navigate to vendor requests
+   - List displays
+   - Can approve/reject
+
+✅ Test 3: Vendor Registration (Optional)
+   - Click "Register as Vendor"
+   - Fill in company info
+   - Submit
+   - Email sent (check backend logs)
+
+✅ Test 4: OTP Flow (Optional)
+   - Approve a vendor request
+   - Vendor requests OTP
+   - Email with code sent
+   - Verify OTP
+   - Login with password
+
+================================================================================
+TROUBLESHOOTING DURING STARTUP
+================================================================================
+
+ISSUE: "Port 8000 already in use"
+SOLUTION:
+   a) Close other applications using port 8000
+   b) Or use different port: --port 8001 instead
+
+ISSUE: "npm command not found"
+SOLUTION:
+   a) Install Node.js from https://nodejs.org/
+   b) Restart terminal after installation
+   c) Retry npm run dev
+
+ISSUE: "ModuleNotFoundError" (Python)
+SOLUTION:
+   a) Run: pip install -r requirements.txt
+   b) Wait for installation to complete
+   c) Retry the uvicorn command
+
+ISSUE: Can't connect to http://localhost:5173
+SOLUTION:
+   a) Check if frontend terminal shows "Local: http://localhost:5173"
+   b) Wait 5-10 seconds for frontend to fully load
+   c) Refresh browser page (Ctrl+R)
+
+ISSUE: Login fails with admin credentials
+SOLUTION:
+   a) Verify backend is running (should see messages in terminal 1)
+   b) Check network connection
+   c) Verify .env file has correct database path
+
+================================================================================
+COMMON OPERATIONS
+================================================================================
+
+STOP BACKEND:
+   - Go to Terminal 1 (Backend)
+   - Press Ctrl+C
+   - Type: Y and press Enter
+
+STOP FRONTEND:
+   - Go to Terminal 2 (Frontend)
+   - Press Ctrl+C
+   - Type: Y and press Enter
+
+RESTART BACKEND:
+   - Stop backend (Ctrl+C)
+   - Run uvicorn command again
+
+RESTART FRONTEND:
+   - Stop frontend (Ctrl+C)
+   - Run: npm run dev
+
+CHECK BACKEND HEALTH:
+   - Open: http://127.0.0.1:8000/api/health
+   - Should show JSON response
+
+CHECK API DOCUMENTATION:
+   - Open: http://127.0.0.1:8000/api/docs
+   - Swagger UI shows all endpoints
+
+VIEW EMAIL STATUS:
+   - Backend terminal shows email messages
+   - Look for: "[SUCCESS] Email sent successfully to..."
+
+================================================================================
+WHAT SHOULD YOU SEE?
+================================================================================
+
+✅ TERMINAL 1 (Backend):
+   INFO:     Uvicorn running on http://127.0.0.1:8000
+   [SUCCESS] Database initialized successfully
+   [STARTUP] Application ready!
+   INFO:     Application startup complete.
+
+✅ TERMINAL 2 (Frontend):
+   ➜  Local:   http://localhost:5173/
+   ➜  press h to show help
+
+✅ BROWSER (http://localhost:5173):
+   VAJRA Security System login page
+   Input fields for email and password
+   Professional UI with navigation
+
+✅ AFTER LOGIN:
+   Dashboard with vendor requests
+   Menu options
+   System functionality
+
+================================================================================
+SYSTEM STATUS
+================================================================================
+
+Backend:   ✅ http://127.0.0.1:8000
+Frontend:  ✅ http://localhost:5173
+Database:  ✅ SQLite ready
+Email:     ✅ Gmail SMTP active
+OTP:       ✅ Ready for testing
+
+All systems operational! 🚀
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. ✅ Start backend (Terminal 1)
+2. ✅ Start frontend (Terminal 2)
+3. ✅ Open http://localhost:5173
+4. ✅ Login with admin credentials
+5. ✅ Test vendor workflow
+6. ✅ Explore system features
+
+Estimated time to full operation: 2-3 minutes
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you encounter issues:
+
+1. Check Terminal 1 (Backend) for error messages
+2. Check Terminal 2 (Frontend) for build errors
+3. Verify ports 8000 and 5173 are available
+4. Ensure all dependencies are installed
+5. Check .env file configuration
+6. Review TROUBLESHOOTING.md for more help
+
+================================================================================
+READY TO START? 🚀
+================================================================================
+
+Open Terminal 1:
+    cd backend
+    python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+Open Terminal 2:
+    cd frontend
+    npm run dev
+
+Open Browser:
+    http://localhost:5173
+
+Login:
+    Email: mayankparab4811@gmail.com
+    Password: Admin123
+
+ENJOY! 🎉

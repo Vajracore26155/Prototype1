@@ -1,0 +1,84 @@
+================================================================================
+🔧 QUICK FIX: OTP EMAILS NOT SENDING TO RECIPIENTS
+================================================================================
+
+PROBLEM:
+  ❌ OTP emails are created but only print to console
+  ❌ No emails received in actual email inbox
+  ❌ System in CONSOLE MODE
+
+SOLUTION REQUIRED:
+  To send OTP emails to real email addresses, you MUST provide valid SMTP
+  credentials. Currently using placeholder password.
+
+================================================================================
+STEP-BY-STEP FIX (5 MINUTES)
+================================================================================
+
+OPTION 1: GMAIL (RECOMMENDED)
+------
+
+1. Enable 2FA on Gmail:
+   - Go to: https://myaccount.google.com/security
+   - Click "2-Step Verification"
+   - Follow steps to enable
+
+2. Generate Gmail App Password:
+   - Go to: https://myaccount.google.com/apppasswords
+   - Select "Mail" and "Windows Computer"
+   - Copy the 16-character password (looks like: xxxx xxxx xxxx xxxx)
+
+3. Update .env file:
+   File: backend/.env
+   Find this line:
+     SMTP_PASSWORD=INSERT_YOUR_16_CHAR_GMAIL_APP_PASSWORD_HERE
+   Replace with:
+     SMTP_PASSWORD=xxxx xxxx xxxx xxxx
+   (Paste your 16-char password)
+
+4. Restart Backend:
+   - Stop current process (Ctrl+C)
+   - Run: python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+5. Test OTP Email:
+   cd backend
+   python test_full_flow.py
+
+   Check your email inbox - you should receive the OTP code!
+
+================================================================================
+OPTION 2: CONTINUE WITH CONSOLE MODE (DEVELOPMENT ONLY)
+------
+
+If you don't have Gmail credentials ready, you can continue testing with
+console mode:
+
+1. OTP codes will print to backend console
+2. Copy the 6-digit code from console
+3. Use it to verify the vendor flow
+4. Production: MUST switch to real SMTP
+
+================================================================================
+CURRENT STATUS
+================================================================================
+
+Backend: Running
+OTP System: ✅ Working (generates codes)
+Database: ✅ Storing OTP codes
+Email Sending: ❌ CONSOLE MODE (needs SMTP credentials)
+Console Output: ✅ Prints OTP codes visible in logs
+
+================================================================================
+WHAT TO DO NOW:
+================================================================================
+
+[ ] Option 1: Get Gmail App Password and update .env
+[ ] Option 2: Continue with console mode (temporary)
+[ ] Option 3: Use alternative SMTP provider (SendGrid, AWS SES, etc.)
+
+EMAIL RECEIVED: Once you complete Option 1, run test_full_flow.py again
+and check your email inbox.
+
+For details, see: backend/FIX_OTP_EMAIL.md
+
+================================================================================

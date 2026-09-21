@@ -56,11 +56,20 @@ class FortinetParser(BaseParser):
     def parse(self, content: str, filename: str) -> UnifiedSecurityModel:
         """Parse FortiGate configuration"""
         try:
+            # Detect VDOM mode
+            vdom_info = self._detect_vdom_mode(content)
+            if vdom_info['enabled'] and len(vdom_info['vdoms']) > 1:
+                print(f"WARNING: Multi-VDOM config detected with {len(vdom_info['vdoms'])} VDOMs")
+                print("Phase 1 only parses global config. Per-VDOM analysis deferred to Phase 2.")
+            
             # Split into lines for line-number tracking
             lines = content.split('\n')
             
+            # Extract version
+            version = self._extract_version(content)
+            
             # Parse device information
-            device = self._parse_device(content, lines, filename)
+            device = self._parse_device(content, lines, filename, version)
             
             # Parse remote access settings (from interface allowaccess)
             remote_access = self._parse_remote_access(content, lines, filename)
@@ -74,7 +83,7 @@ class FortinetParser(BaseParser):
             # Parse logging
             logging = self._parse_logging(content, lines, filename)
             
-            # Parse access control
+            # Parse access control (with trusthost)
             access_control = self._parse_access_control(content, lines, filename)
             
             # Build unified model
@@ -105,6 +114,63 @@ class FortinetParser(BaseParser):
                 return (i + 1, line.strip())
         return None
     
+    def _detect_vdom_mode(self, content: str) -> dict:
+        """
+        Detect VDOM configuration
+        
+        Returns dict with enabled, vdoms list, and mode
+        """
+        vdom_info = {
+            'enabled': False,
+            'vdoms': [],
+            'mode': 'global'
+        }
+        
+        # Check if VDOM is enabled
+        if re.search(r'config\s+global', content, re.IGNORECASE):
+            vdom_info['enabled'] = True
+            vdom_info['mode'] = 'global'
+        
+        # Extract VDOM names
+        vdom_matches = re.findall(
+            r'config\s+vdom\s*\n\s*edit\s+["\']?(\w+)["\']?',
+            content,
+            re.IGNORECASE
+        )
+        vdom_info['vdoms'] = vdom_matches
+        
+        return vdom_info
+    
+    def _extract_version(self, content: str) -> Optional[str]:
+        """
+        Extract FortiOS version from config
+        
+        Looks for config-version comments or embedded version strings
+        """
+        # Check for config-version comment
+        match = re.search(
+            r'#\s*config-version=([^:]+):build(\d+)',
+            content,
+            re.IGNORECASE
+        )
+        if match:
+            model = match.group(1)
+            build = match.group(2)
+            return f"{model} build {build}"
+        
+        # Check for version in comments
+        match = re.search(
+            r'#\s*FortiGate-(\S+)\s+v(\d+\.\d+\.\d+)',
+            content,
+            re.IGNORECASE
+        )
+        if match:
+            model = match.group(1)
+            version = match.group(2)
+            return f"FortiGate-{model} v{version}"
+        
+        return None
+    
     def _find_all_patterns(self, pattern: str, lines: list, flags=re.IGNORECASE) -> List[Tuple[int, str]]:
         """Find all occurrences of pattern"""
         results = []
@@ -113,7 +179,7 @@ class FortinetParser(BaseParser):
                 results.append((i + 1, line.strip()))
         return results
     
-    def _parse_device(self, content: str, lines: list, filename: str) -> DeviceInfo:
+    def _parse_device(self, content: str, lines: list, filename: str, version: Optional[str]) -> DeviceInfo:
         """Parse device information"""
         hostname = None
         hostname_evidence = None
@@ -135,7 +201,7 @@ class FortinetParser(BaseParser):
             hostname=hostname,
             vendor="Fortinet",
             device_type="firewall",
-            version=None,  # Version extraction would require more parsing
+            version=version,
             evidence=hostname_evidence
         )
     
@@ -339,7 +405,10 @@ class FortinetParser(BaseParser):
     def _parse_access_control(self, content: str, lines: list, filename: str) -> AccessControl:
         """Parse access control settings"""
         timeout = None
+        source_filtering = None
+        
         timeout_evidence = None
+        source_filtering_evidence = None
         
         # Check for admin timeout in system global
         result = self._find_pattern(r'set\s+admin-timeout\s+\d+', lines)
@@ -348,7 +417,20 @@ class FortinetParser(BaseParser):
             timeout = True
             timeout_evidence = Evidence(file=filename, line=line_num, text=line_text)
         
+        # Check for trusthost restrictions (source filtering)
+        result = self._find_pattern(r'set\s+trusthost\d+\s+\d+\.\d+\.\d+\.\d+', lines)
+        if result:
+            line_num, line_text = result
+            source_filtering = True
+            source_filtering_evidence = Evidence(
+                file=filename,
+                line=line_num,
+                text=line_text
+            )
+        
         return AccessControl(
             timeout_configured=timeout,
-            timeout_evidence=timeout_evidence
+            source_filtering=source_filtering,
+            timeout_evidence=timeout_evidence,
+            source_filtering_evidence=source_filtering_evidence
         )

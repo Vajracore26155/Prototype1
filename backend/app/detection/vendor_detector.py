@@ -12,6 +12,8 @@ class VendorType(str, Enum):
     """Supported vendor types"""
     CISCO = "Cisco"
     FORTINET = "Fortinet"
+    PALO_ALTO = "Palo Alto"
+    JUNIPER = "Juniper"
     AWS = "AWS"
     UNKNOWN = "Unknown"
 
@@ -40,8 +42,10 @@ class VendorDetector:
     Deterministic vendor detection using signature fingerprinting
     
     Detects:
-    - Cisco IOS/IOS-XE
+    - Cisco IOS/IOS-XE/IOS-XR
     - Fortinet FortiGate
+    - Palo Alto PAN-OS
+    - Juniper JunOS
     - AWS Security Groups (JSON)
     - Unknown (fallback)
     """
@@ -226,6 +230,134 @@ class VendorDetector:
                     pattern=r'"FromPort"\s*:',
                     weight=0.1,
                     description="AWS port configuration",
+                    flags=re.IGNORECASE
+                ),
+            ],
+            
+            VendorType.PALO_ALTO: [
+                # High confidence indicators
+                VendorSignature(
+                    pattern=r'^\s*set\s+deviceconfig\s+system',
+                    weight=0.30,
+                    description="PAN-OS deviceconfig",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+mgt-config',
+                    weight=0.30,
+                    description="PAN-OS management config",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+rulebase\s+security',
+                    weight=0.25,
+                    description="PAN-OS security rulebase",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+zone\s+\S+\s+network\s+layer3',
+                    weight=0.25,
+                    description="PAN-OS zone configuration",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                
+                # Medium confidence indicators
+                VendorSignature(
+                    pattern=r'^\s*set\s+shared\s+log-settings',
+                    weight=0.20,
+                    description="PAN-OS logging",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+network\s+interface',
+                    weight=0.15,
+                    description="PAN-OS interface",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'\bphash\b',
+                    weight=0.15,
+                    description="PAN-OS password hash",
+                    flags=re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'role-based\s+(?:superuser|deviceadmin)',
+                    weight=0.10,
+                    description="PAN-OS role-based access",
+                    flags=re.IGNORECASE
+                ),
+            ],
+            
+            VendorType.JUNIPER: [
+                # High confidence indicators
+                VendorSignature(
+                    pattern=r'^\s*system\s*\{',
+                    weight=0.30,
+                    description="JunOS system block",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+system\s+host-name',
+                    weight=0.30,
+                    description="JunOS set command",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*interfaces\s*\{',
+                    weight=0.25,
+                    description="JunOS interfaces block",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*set\s+interfaces\s+[a-z]{2}-\d+/\d+/\d+',
+                    weight=0.25,
+                    description="JunOS interface naming",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*firewall\s*\{',
+                    weight=0.25,
+                    description="JunOS firewall block",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                
+                # Medium confidence indicators
+                VendorSignature(
+                    pattern=r'^\s*protocols\s*\{',
+                    weight=0.20,
+                    description="JunOS protocols block",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'^\s*routing-options\s*\{',
+                    weight=0.20,
+                    description="JunOS routing options",
+                    flags=re.MULTILINE | re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'encrypted-password\s+"\$',
+                    weight=0.15,
+                    description="JunOS encrypted password",
+                    flags=re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'class\s+super-user',
+                    weight=0.15,
+                    description="JunOS user class",
+                    flags=re.IGNORECASE
+                ),
+                
+                # Lower confidence indicators
+                VendorSignature(
+                    pattern=r'\bunit\s+\d+\s*\{',
+                    weight=0.10,
+                    description="JunOS interface unit",
+                    flags=re.IGNORECASE
+                ),
+                VendorSignature(
+                    pattern=r'family\s+inet\s*\{',
+                    weight=0.10,
+                    description="JunOS inet family",
                     flags=re.IGNORECASE
                 ),
             ]

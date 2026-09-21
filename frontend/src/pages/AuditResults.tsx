@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Shield, AlertCircle, CheckCircle, ChevronDown, AlertTriangle, Download } from 'lucide-react';
 import { getAudit, getFindings, downloadAuditReport } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import type { Audit, Finding } from '../types';
 import BackButton from '../components/BackButton';
 
 const AuditResults = () => {
   const { auditId } = useParams<{ auditId: string }>();
+  const { showSuccess, showError, showInfo } = useToast();
   const [audit, setAudit] = useState<Audit | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,11 +46,26 @@ const AuditResults = () => {
     if (!auditId) return;
     
     setDownloadingReport(true);
+    showInfo('Generating Report', 'Creating PDF report...');
+    
+    console.log('[DEBUG] Starting report download for audit:', auditId);
+    
     try {
       await downloadAuditReport(auditId);
-    } catch (error) {
-      console.error('Failed to download report:', error);
-      alert('Failed to download report. Please try again.');
+      showSuccess('Report Downloaded', 'Audit report has been downloaded successfully.');
+      console.log('[DEBUG] Report downloaded successfully');
+    } catch (error: any) {
+      console.error('[DEBUG] Failed to download report:', error);
+      console.error('[DEBUG] Error response:', error.response);
+      console.error('[DEBUG] Error status:', error.response?.status);
+      console.error('[DEBUG] Error data:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.detail?.message 
+        || error.response?.data?.detail 
+        || error.message 
+        || 'Failed to download report. Please try again.';
+      
+      showError('Download Failed', errorMessage);
     } finally {
       setDownloadingReport(false);
     }

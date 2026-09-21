@@ -1,0 +1,166 @@
+================================================================================
+🚀 QUICK STARTUP - BACKEND & FRONTEND
+================================================================================
+
+OPEN TWO TERMINALS:
+
+================================================================================
+TERMINAL 1 - BACKEND
+================================================================================
+
+Command:
+    cd backend
+    python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+Expected Output:
+    INFO:     Uvicorn running on http://127.0.0.1:8000
+    [SUCCESS] Database initialized successfully
+    [STARTUP] Application ready!
+
+What It Does:
+    - Starts REST API server on port 8000
+    - Initializes SQLite database
+    - Loads environment configuration
+    - Activates email service (Gmail SMTP)
+    - Ready to receive API requests
+
+================================================================================
+TERMINAL 2 - FRONTEND
+================================================================================
+
+Command:
+    cd frontend
+    npm run dev
+
+Expected Output:
+    ➜  Local:   http://localhost:5173/
+    ➜  press h to show help
+
+What It Does:
+    - Starts React development server on port 5173
+    - Hot reload enabled (auto-refresh on code changes)
+    - Connects to backend API on port 8000
+    - Webpack build in memory
+
+================================================================================
+VERIFY BOTH ARE RUNNING
+================================================================================
+
+✅ Open Browser and Go To:
+    http://localhost:5173
+
+✅ Should See:
+    - VAJRA System login page
+    - Navigation menu
+    - Admin dashboard or vendor portal
+
+✅ Try Admin Login:
+    Email: mayankparab4811@gmail.com
+    Password: Admin123
+
+================================================================================
+PORTS
+================================================================================
+
+Backend API:     http://127.0.0.1:8000
+Frontend:        http://localhost:5173
+API Swagger Docs: http://127.0.0.1:8000/api/docs
+API Health:      http://127.0.0.1:8000/api/health
+
+================================================================================
+FIRST TIME SETUP (Dependencies)
+================================================================================
+
+If Needed, Run These Once:
+
+Backend:
+    cd backend
+    pip install -r requirements.txt
+
+Frontend:
+    cd frontend
+    npm install
+
+Then run the startup commands above.
+
+================================================================================
+TEST ACCOUNTS
+================================================================================
+
+Admin:
+    Email: mayankparab4811@gmail.com
+    Password: Admin123
+
+Vendor (Pre-approved):
+    Email: e2e_vendor_199372@test.com
+    Password: FinalVendorPass456
+
+================================================================================
+STOP SERVERS
+================================================================================
+
+Press Ctrl+C in either terminal to stop the server
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Backend Port 8000 Already in Use:
+    lsof -i :8000          (macOS/Linux)
+    netstat -ano | findstr :8000  (Windows)
+    (then close the process)
+    Or use: --port 8001
+
+Frontend node_modules Missing:
+    cd frontend
+    npm install
+
+Python Dependencies Missing:
+    cd backend
+    pip install -r requirements.txt
+
+Can't Connect to Backend:
+    - Verify backend is running on http://127.0.0.1:8000
+    - Check firewall settings
+    - Verify .env file exists
+
+================================================================================
+FEATURES TO TEST
+================================================================================
+
+1. Admin Login
+   - Navigate to http://localhost:5173
+   - Login with admin credentials
+   - View vendor requests dashboard
+
+2. Vendor Registration
+   - Click "Register as Vendor"
+   - Fill in company details
+   - Email sent to admin
+
+3. Admin Approval
+   - Login as admin
+   - View pending vendor requests
+   - Approve or reject
+
+4. OTP Verification
+   - Vendor requests OTP
+   - Email with 6-digit code sent
+   - Verify OTP to proceed
+
+5. File Upload
+   - Upload device configurations
+   - System analyzes files
+   - View compliance reports
+
+================================================================================
+SYSTEM READY ✅
+================================================================================
+
+Backend: Running on http://127.0.0.1:8000
+Frontend: Running on http://localhost:5173
+Database: SQLite initialized
+Email: Gmail SMTP configured
+OTP System: Active and sending emails
+
+All systems operational! 🚀

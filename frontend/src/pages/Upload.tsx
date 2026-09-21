@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { uploadConfiguration } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 
 const Upload = () => {
@@ -11,6 +13,8 @@ const Upload = () => {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
+  const { user } = useAuth();
   
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -71,19 +75,26 @@ const Upload = () => {
       
       if (response.success) {
         setSuccess(true);
+        showSuccess(
+          'Configuration Uploaded!',
+          `${file.name} has been successfully uploaded and is ready for analysis.`
+        );
         setTimeout(() => {
           navigate('/configurations');
         }, 2000);
       } else {
-        setError(response.error?.message || 'Upload failed');
+        const errorMsg = response.error?.message || 'Upload failed';
+        setError(errorMsg);
+        showError('Upload Failed', errorMsg);
       }
     } catch (err: any) {
       console.error('Upload error:', err);
       const errorMessage = err.response?.data?.detail?.error?.message 
         || err.response?.data?.error?.message 
         || err.message 
-        || 'Upload failed. Please check console for details.';
+        || 'Upload failed. Please try again.';
       setError(errorMessage);
+      showError('Upload Failed', errorMessage);
     } finally {
       setUploading(false);
     }

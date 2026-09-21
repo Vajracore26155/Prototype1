@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, Clock, TrendingUp, ArrowUpRight, FileText } from 'lucide-react';
 import { getDashboardSummary } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import type { DashboardSummary } from '../types';
 
 const Dashboard = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { showError } = useToast();
   
   useEffect(() => {
     loadDashboard();
@@ -17,8 +21,9 @@ const Dashboard = () => {
       if (response.success && response.data) {
         setSummary(response.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load dashboard:', error);
+      showError('Failed to Load Dashboard', 'Could not retrieve dashboard data. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -36,11 +41,20 @@ const Dashboard = () => {
   if (summary?.total_configs === 0) {
     return (
       <div className="max-w-4xl mx-auto page-enter">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-neutral-900">
+            Welcome, {user?.full_name || 'User'}! 👋
+          </h2>
+          <p className="text-neutral-600 mt-1">
+            {user?.organization_name} • {user?.role.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')}
+          </p>
+        </div>
+        
         <div className="text-center py-16">
           <div className="inline-flex p-6 bg-brand-50 rounded-3xl mb-6 animate-[scaleIn_500ms_var(--ease-out)]">
             <Shield className="w-20 h-20 text-brand-600" />
           </div>
-          <h1 className="text-4xl font-bold mb-4 text-neutral-900">Welcome to Network Security Auditor</h1>
+          <h1 className="text-4xl font-bold mb-4 text-neutral-900">Welcome to Tatva Security Platform</h1>
           <p className="text-lg text-neutral-600 mb-8 max-w-2xl mx-auto leading-relaxed">
             AI-powered compliance auditing for multi-vendor network configurations. 
             Get started by uploading your first configuration file.

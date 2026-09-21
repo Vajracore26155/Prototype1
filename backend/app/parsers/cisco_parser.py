@@ -23,14 +23,22 @@ from app.normalization.schema import (
 
 class CiscoParser(BaseParser):
     """
-    Parser for Cisco IOS/IOS-XE configurations
+    Parser for Cisco IOS/IOS-XE/IOS-XR configurations
     
     Extracts:
     - Hostname
-    - SSH/Telnet settings
+    - SSH/Telnet settings (with IOS-XR support)
     - HTTP/HTTPS management
     - Authentication configuration
     - Logging settings
+    - Access control (ACLs, timeouts)
+    - Device type detection (router/switch/firewall)
+    
+    Phase 1 Enhancements:
+    - IOS-XR syntax support (different commands)
+    - Device type inference from config patterns
+    - ACL parsing for source_filtering
+    - Enhanced SNMP detection (v2c vs v3)
     """
     
     @property
@@ -58,11 +66,14 @@ class CiscoParser(BaseParser):
             # Split into lines for line-number tracking
             lines = content.split('\n')
             
-            # Parse device information
-            device = self._parse_device(content, lines, filename)
+            # Detect IOS variant (IOS, IOS-XE, IOS-XR)
+            ios_variant = self._detect_ios_variant(content)
             
-            # Parse remote access settings
-            remote_access = self._parse_remote_access(content, lines, filename)
+            # Parse device information (with device type detection)
+            device = self._parse_device(content, lines, filename, ios_variant)
+            
+            # Parse remote access settings (variant-aware)
+            remote_access = self._parse_remote_access(content, lines, filename, ios_variant)
             
             # Parse management protocols
             management = self._parse_management(content, lines, filename)
@@ -73,7 +84,7 @@ class CiscoParser(BaseParser):
             # Parse logging
             logging = self._parse_logging(content, lines, filename)
             
-            # Parse access control
+            # Parse access control (with ACL detection)
             access_control = self._parse_access_control(content, lines, filename)
             
             # Build unified model
@@ -104,7 +115,54 @@ class CiscoParser(BaseParser):
                 return (i + 1, line.strip())
         return None
     
-    def _parse_device(self, content: str, lines: list, filename: str) -> DeviceInfo:
+    def _detect_ios_variant(self, content: str) -> str:
+        """
+        Detect IOS variant (IOS, IOS-XE, or IOS-XR)
+        
+        Returns: "IOS-XR", "IOS-XE", or "IOS"
+        """
+        # IOS-XR has distinct syntax
+        if re.search(r'telnet\s+ipv4\s+server', content, re.IGNORECASE):
+            return "IOS-XR"
+        elif re.search(r'ssh\s+server\s+v\d+', content, re.IGNORECASE):
+            return "IOS-XR"
+        # IOS-XE uses similar syntax to IOS
+        elif re.search(r'ip\s+http', content, re.IGNORECASE):
+            return "IOS-XE"
+        else:
+            return "IOS"
+    
+    def _detect_device_type(self, content: str) -> str:
+        """
+        Detect device type from config patterns
+        
+        Returns: "router", "switch", "firewall", or "unknown"
+        """
+        # Check for switching features
+        if re.search(r'^\s*vlan\s+database', content, re.MULTILINE | re.IGNORECASE):
+            return "switch"
+        elif re.search(r'^\s*switchport', content, re.MULTILINE | re.IGNORECASE):
+            return "switch"
+        elif re.search(r'^\s*spanning-tree', content, re.MULTILINE | re.IGNORECASE):
+            return "switch"
+        
+        # Check for routing features
+        elif re.search(r'^\s*router\s+(?:ospf|eigrp|bgp)', content, re.MULTILINE | re.IGNORECASE):
+            return "router"
+        
+        # Check for ASA firewall features
+        elif re.search(r'^\s*access-group\s+\S+\s+in\s+interface', content, re.MULTILINE | re.IGNORECASE):
+            return "firewall"
+        elif re.search(r'^\s*object\s+network', content, re.MULTILINE | re.IGNORECASE):
+            return "firewall"
+        
+        # Default to router if interfaces present
+        elif re.search(r'^\s*interface\s+GigabitEthernet', content, re.MULTILINE | re.IGNORECASE):
+            return "router"
+        
+        return "unknown"
+    
+    def _parse_device(self, content: str, lines: list, filename: str, ios_variant: str) -> DeviceInfo:
         """Parse device information"""
         hostname = None
         version = None
@@ -129,18 +187,21 @@ class CiscoParser(BaseParser):
             line_num, line_text = result
             match = re.search(r'version\s+([\d.]+)', line_text, re.IGNORECASE)
             if match:
-                version = match.group(1)
+                version = f"{ios_variant} {match.group(1)}"
+        
+        # Detect device type
+        device_type = self._detect_device_type(content)
         
         return DeviceInfo(
             hostname=hostname,
             vendor="Cisco",
-            device_type="router",  # Could be enhanced to detect switch/router/etc
+            device_type=device_type,
             version=version,
             evidence=hostname_evidence
         )
     
-    def _parse_remote_access(self, content: str, lines: list, filename: str) -> RemoteAccess:
-        """Parse remote access settings (SSH, Telnet)"""
+    def _parse_remote_access(self, content: str, lines: list, filename: str, ios_variant: str) -> RemoteAccess:
+        """Parse remote access settings (SSH, Telnet) - variant-aware"""
         ssh_enabled = None
         ssh_version = None
         telnet_enabled = None
@@ -149,6 +210,36 @@ class CiscoParser(BaseParser):
         ssh_version_evidence = None
         telnet_evidence = None
         
+        # IOS-XR has different syntax
+        if ios_variant == "IOS-XR":
+            # IOS-XR: "ssh server v2"
+            result = self._find_pattern(r'^\s*ssh\s+server\s+v(\d+)', lines)
+            if result:
+                line_num, line_text = result
+                match = re.search(r'ssh\s+server\s+v(\d+)', line_text, re.IGNORECASE)
+                if match:
+                    ssh_enabled = True
+                    ssh_version = int(match.group(1))
+                    ssh_evidence = Evidence(file=filename, line=line_num, text=line_text)
+                    ssh_version_evidence = ssh_evidence
+            
+            # IOS-XR: "telnet ipv4 server max-servers <num>"
+            result = self._find_pattern(r'^\s*telnet\s+ipv4\s+server', lines)
+            if result:
+                line_num, line_text = result
+                telnet_enabled = True
+                telnet_evidence = Evidence(file=filename, line=line_num, text=line_text)
+            
+            return RemoteAccess(
+                ssh_enabled=ssh_enabled,
+                ssh_version=ssh_version,
+                telnet_enabled=telnet_enabled,
+                ssh_enabled_evidence=ssh_evidence,
+                ssh_version_evidence=ssh_version_evidence,
+                telnet_enabled_evidence=telnet_evidence
+            )
+        
+        # Standard IOS/IOS-XE processing
         # Check for "transport input" command
         result = self._find_pattern(r'^\s*transport\s+input\s+(.+)', lines)
         if result:
@@ -325,9 +416,12 @@ class CiscoParser(BaseParser):
         )
     
     def _parse_access_control(self, content: str, lines: list, filename: str) -> AccessControl:
-        """Parse access control settings"""
+        """Parse access control settings including ACLs"""
         timeout = None
+        source_filtering = None
+        
         timeout_evidence = None
+        source_filtering_evidence = None
         
         # Check for exec-timeout or timeout login response
         result = self._find_pattern(r'^\s*(?:exec-timeout|timeout\s+login\s+response)', lines)
@@ -336,7 +430,33 @@ class CiscoParser(BaseParser):
             timeout = True
             timeout_evidence = Evidence(file=filename, line=line_num, text=line_text)
         
+        # Check for VTY access-class restrictions (source filtering)
+        result = self._find_pattern(r'^\s*access-class\s+(\S+)\s+in', lines)
+        if result:
+            line_num, line_text = result
+            source_filtering = True
+            source_filtering_evidence = Evidence(
+                file=filename,
+                line=line_num,
+                text=line_text
+            )
+        
+        # If no VTY access-class but ACL definitions exist, mark as unknown
+        if source_filtering is None:
+            acl_result = self._find_pattern(r'^\s*(?:access-list|ip\s+access-list)\s+', lines)
+            if acl_result:
+                # ACLs defined but may not be applied to VTY
+                line_num, line_text = acl_result
+                # Set to None (unknown if applied) with evidence noting ACL exists
+                source_filtering_evidence = Evidence(
+                    file=filename,
+                    line=line_num,
+                    text=f"ACL defined but VTY application unclear: {line_text}"
+                )
+        
         return AccessControl(
             timeout_configured=timeout,
-            timeout_evidence=timeout_evidence
+            source_filtering=source_filtering,
+            timeout_evidence=timeout_evidence,
+            source_filtering_evidence=source_filtering_evidence
         )

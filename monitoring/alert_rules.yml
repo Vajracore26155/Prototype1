@@ -1,0 +1,162 @@
+# ============================================================
+# Prometheus Alert Rules for VAJRA CORE
+# ============================================================
+
+groups:
+  - name: vajra_api
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # Slow requests
+      - alert: SlowRequests
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API requests are slow"
+          description: "95th percentile latency is {{ $value }}s (threshold: 5s)"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="vajra-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VAJRA API service is down"
+          description: "VAJRA API has been down for more than 1 minute"
+
+  - name: vajra_security
+    interval: 30s
+    rules:
+      # Critical findings spike
+      - alert: CriticalFindingsSpike
+        expr: increase(findings_by_severity{severity="CRITICAL"}[15m]) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Spike in critical security findings"
+          description: "{{ $value }} critical findings detected in last 15 minutes"
+
+      # Low compliance score
+      - alert: LowComplianceScore
+        expr: avg(audit_compliance_score) < 70
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low compliance score detected"
+          description: "Average compliance score is {{ $value }}% (threshold: 70%)"
+
+      # Authentication failures
+      - alert: HighAuthFailureRate
+        expr: rate(http_requests_total{endpoint="/api/auth/login", status_code="401"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value }}/sec"
+
+  - name: vajra_system
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: system_cpu_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: system_memory_percent > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% (threshold: 85%)"
+
+      # Disk space warning
+      - alert: DiskSpaceWarning
+        expr: system_disk_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low"
+          description: "Disk usage on {{ $labels.mount_point }} is {{ $value }}% (threshold: 80%)"
+
+      # Disk space critical
+      - alert: DiskSpaceCritical
+        expr: system_disk_percent > 90
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critically low"
+          description: "Disk usage on {{ $labels.mount_point }} is {{ $value }}% (threshold: 90%)"
+
+  - name: vajra_database
+    interval: 30s
+    rules:
+      # Slow database queries
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query duration is {{ $value }}s (threshold: 2s)"
+
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: database_connections_total > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "{{ $value }} database connections active (threshold: 90)"
+
+  - name: vajra_cache
+    interval: 30s
+    rules:
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) < 0.7
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+
+  - name: vajra_webhooks
+    interval: 30s
+    rules:
+      # High webhook failure rate
+      - alert: HighWebhookFailureRate
+        expr: rate(webhooks_delivered{status="failed"}[5m]) / rate(webhooks_delivered[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High webhook delivery failure rate"
+          description: "Webhook failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"

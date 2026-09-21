@@ -1,0 +1,236 @@
+# ============================================================
+# VAJRA CORE - Production Docker Compose
+# Full production stack with all services
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: vajra-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-vajra_core}
+      POSTGRES_USER: ${DATABASE_USER:-vajra}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-change-this-password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-vajra}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # Redis Cache & Queue
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: vajra-redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-change-this-redis-password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # MinIO Object Storage
+  # ============================================================
+  minio:
+    image: minio/minio:latest
+    container_name: vajra-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # VAJRA Core Backend
+  # ============================================================
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+    container_name: vajra-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DATABASE_USER:-vajra}:${DATABASE_PASSWORD:-change-this-password}@postgres:5432/${DATABASE_NAME:-vajra_core}
+      
+      # Redis
+      REDIS_ENABLED: "true"
+      REDIS_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/0
+      
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/2
+      
+      # JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-strong-secret-key}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_MINUTES: 60
+      
+      # Storage
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
+      MINIO_BUCKET: vajra-configs
+      MINIO_SECURE: "false"
+      
+      # LLM APIs (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      
+      # Application
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # Celery Worker
+  # ============================================================
+  celery-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+    container_name: vajra-celery-worker
+    restart: always
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    depends_on:
+      - backend
+      - redis
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-vajra}:${DATABASE_PASSWORD:-change-this-password}@postgres:5432/${DATABASE_NAME:-vajra_core}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/2
+    volumes:
+      - backend_data:/app/data
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # Celery Beat Scheduler
+  # ============================================================
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+    container_name: vajra-celery-beat
+    restart: always
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    depends_on:
+      - backend
+      - redis
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER:-vajra}:${DATABASE_PASSWORD:-change-this-password}@postgres:5432/${DATABASE_NAME:-vajra_core}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/2
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # Flower (Celery Monitoring)
+  # ============================================================
+  flower:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+    container_name: vajra-flower
+    restart: always
+    command: celery -A app.tasks.celery_app flower --port=5555
+    depends_on:
+      - redis
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-change-this-redis-password}@redis:6379/2
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    networks:
+      - vajra-network
+
+  # ============================================================
+  # Nginx Reverse Proxy (Optional)
+  # ============================================================
+  nginx:
+    image: nginx:alpine
+    container_name: vajra-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - vajra-network
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  vajra-network:
+    driver: bridge
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local

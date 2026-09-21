@@ -22,7 +22,7 @@ def get_model():
             model_name = os.getenv("AI_MODEL", "all-MiniLM-L6-v2")
             print(f"Loading embedding model: {model_name}")
             _model = SentenceTransformer(model_name)
-            print("✓ Embedding model loaded successfully")
+            print("[SUCCESS] Embedding model loaded successfully")
         except Exception as e:
             print(f"Warning: Failed to load embedding model: {e}")
             print("AI features will be limited")

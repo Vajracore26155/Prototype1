@@ -4,7 +4,9 @@ Findings API endpoints
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database import get_db, Audit, Finding
+from app.database import get_db, Audit, Finding, Configuration, User
+from app.auth.dependencies import require_permission
+from app.auth.permissions import Permission
 
 router = APIRouter()
 
@@ -12,14 +14,20 @@ router = APIRouter()
 @router.get("/audits/{audit_id}/findings")
 async def get_findings(
     audit_id: str,
+    current_user: User = Depends(require_permission(Permission.FINDING_VIEW)),
     db: Session = Depends(get_db)
 ):
     """
     Get findings for an audit with evidence and remediation
     """
     try:
-        # Check if audit exists
-        audit = db.query(Audit).filter(Audit.audit_id == audit_id).first()
+        # Check if audit exists and belongs to organization
+        audit = db.query(Audit).join(
+            Configuration, Audit.configuration_id == Configuration.id
+        ).filter(
+            Audit.audit_id == audit_id,
+            Configuration.organization_id == current_user.organization_id
+        ).first()
         
         if not audit:
             raise HTTPException(

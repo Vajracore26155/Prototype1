@@ -1,0 +1,176 @@
+{
+  "dashboard": {
+    "title": "VAJRA CORE - Network Security Auditor",
+    "tags": ["vajra", "security", "compliance"],
+    "timezone": "UTC",
+    "panels": [
+      {
+        "title": "HTTP Requests per Second",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "title": "HTTP Request Duration (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "title": "Active Audits",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(audits_total[5m]))"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "title": "Average Compliance Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "avg(audit_compliance_score)"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "title": "Critical Findings",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "findings_by_severity{severity=\"CRITICAL\"}"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8}
+      },
+      {
+        "title": "High Findings",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "findings_by_severity{severity=\"HIGH\"}"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8}
+      },
+      {
+        "title": "Findings by Severity",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "findings_by_severity",
+            "legendFormat": "{{severity}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      },
+      {
+        "title": "Audit Duration by Framework",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(audit_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{framework}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      },
+      {
+        "title": "System CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "system_cpu_percent"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 20}
+      },
+      {
+        "title": "System Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "system_memory_percent"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 20}
+      },
+      {
+        "title": "Database Query Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{query_type}}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 20}
+      },
+      {
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))",
+            "legendFormat": "{{cache_type}}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 26}
+      },
+      {
+        "title": "AI Prediction Confidence",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "rate(ai_prediction_confidence_bucket[5m])",
+            "legendFormat": "{{model_type}}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 26}
+      },
+      {
+        "title": "Webhook Delivery Success Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(webhooks_delivered{status=\"success\"}[5m]) / rate(webhooks_delivered[5m])",
+            "legendFormat": "{{event_type}}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "title": "Configuration Uploads by Vendor",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (vendor) (rate(configurations_uploaded_total[5m]))",
+            "legendFormat": "{{vendor}}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 32}
+      }
+    ],
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    }
+  }
+}

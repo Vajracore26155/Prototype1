@@ -13,6 +13,40 @@ const api = axios.create({
   },
 });
 
+// Request interceptor - Add authentication token to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - Handle authentication errors
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear auth and redirect to login
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      
+      // Only redirect if not already on login/register page
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Upload configuration file
 export const uploadConfiguration = async (file: File): Promise<ApiResponse<Configuration>> => {
   try {
