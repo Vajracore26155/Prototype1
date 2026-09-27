@@ -30,7 +30,7 @@ apscheduler==3.10.4
 
 # Reporting
 reportlab==4.0.7
-pillow==10.1.0
+pillow==10.4.0
 
 # Monitoring & Observability
 prometheus-client==0.19.0
