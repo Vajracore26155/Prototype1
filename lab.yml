@@ -1,0 +1,6 @@
+name: srl-lab
+topology:
+  nodes:
+    srl1:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:23.7.1

@@ -1,0 +1,101 @@
+{
+  "name": "ntro-lab",
+  "type": "clab",
+  "clab": {
+    "config": {
+      "prefix": "clab",
+      "mgmt": {
+        "network": "clab",
+        "bridge": "br-b3dfaec70c60",
+        "ipv4-subnet": "172.20.20.0/24",
+        "ipv4-gw": "172.20.20.1",
+        "ipv6-subnet": "3fff:172:20:20::/64",
+        "ipv6-gw": "3fff:172:20:20::1",
+        "external-access": true
+      }
+    }
+  },
+  "ssh-pub-keys": ["ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDbbR2rYtMSHJcAivPxyOaxr0XRGYZ76ASZSoH00nHBp5xxGm3VoshcvxqmMn0qzYo63vxLAJOtJbOBp7WSfPkTCAp7sBfJKBb1XKHEwR5xDubqQuo9jfHVoRuMcWVN88sZnj8td9Ex4iRfCRgylKOBmgabOUOZPWiKyDmrrhiV5jLmVEWegvvZJGAAoIc23tW3a/nPRG1IIwGuwA1qwB9p1ioLzitnWqPkZYwNzOZGwbc1U1jJWOL3kWgwn6wfUqNWeEcn4KdGVZMIilDryKOW5eKWWZKpvjc8ElNYMXWMmivtsrIHYg9vbHlTKeDwHtugjkL/s7oMGQ/uzS+DzigD"],
+  "nodes": {
+    "frr1": {
+      "index": "0",
+      "shortname": "frr1",
+      "longname": "clab-ntro-lab-frr1",
+      "fqdn": "frr1.ntro-lab.io",
+      "group": "",
+      "labdir": "/home/ubuntu/ntro-network-lab/topology/clab-ntro-lab/frr1",
+      "kind": "linux",
+      "image": "quay.io/frrouting/frr:10.1.1",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.20.3",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "3fff:172:20:20::3",
+      "mgmt-ipv6-prefix-length": 64,
+      "mac-address": "",
+      "labels": {
+        "clab-mgmt-net-bridge": "br-b3dfaec70c60",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ubuntu/ntro-network-lab/topology/clab-ntro-lab/frr1",
+        "clab-node-longname": "clab-ntro-lab-frr1",
+        "clab-node-name": "frr1",
+        "clab-node-type": "",
+        "clab-owner": "ubuntu",
+        "clab-topo-file": "/home/ubuntu/ntro-network-lab/topology/nokia-frr.clab.yml",
+        "containerlab": "ntro-lab"
+      },
+      "port-bindings": [
+      ]
+    },
+    "nokia1": {
+      "index": "1",
+      "shortname": "nokia1",
+      "longname": "clab-ntro-lab-nokia1",
+      "fqdn": "nokia1.ntro-lab.io",
+      "group": "",
+      "labdir": "/home/ubuntu/ntro-network-lab/topology/clab-ntro-lab/nokia1",
+      "kind": "srl",
+      "image": "ghcr.io/nokia/srlinux:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.20.4",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "3fff:172:20:20::4",
+      "mgmt-ipv6-prefix-length": 64,
+      "mac-address": "1a:85:01:00:00:00",
+      "labels": {
+        "clab-mgmt-net-bridge": "br-b3dfaec70c60",
+        "clab-node-group": "",
+        "clab-node-kind": "srl",
+        "clab-node-lab-dir": "/home/ubuntu/ntro-network-lab/topology/clab-ntro-lab/nokia1",
+        "clab-node-longname": "clab-ntro-lab-nokia1",
+        "clab-node-name": "nokia1",
+        "clab-node-type": "ixr-d2l",
+        "clab-owner": "ubuntu",
+        "clab-topo-file": "/home/ubuntu/ntro-network-lab/topology/nokia-frr.clab.yml",
+        "containerlab": "ntro-lab"
+      },
+      "port-bindings": [
+      ]
+    }
+  },
+  "links": [
+    {
+      "endpoints": {
+        "a": {
+          "node": "nokia1",
+          "interface": "e1-1",
+          "mac": "aa:c1:ab:c8:7f:40",
+          "peer": "z"
+        },
+        "z": {
+          "node": "frr1",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:51:c8:20",
+          "peer": "a"
+        }
+      }
+    }
+  ]
+}

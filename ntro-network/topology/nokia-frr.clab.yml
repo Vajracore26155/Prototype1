@@ -1,0 +1,15 @@
+name: ntro-lab
+topology:
+  nodes:
+    nokia1:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:latest
+    frr1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.1.1
+      binds:
+        - ../configs/frr/daemons:/etc/frr/daemons
+        - ../configs/frr/frr.conf:/etc/frr/frr.conf
+
+  links:
+    - endpoints: ["nokia1:e1-1", "frr1:eth1"]
