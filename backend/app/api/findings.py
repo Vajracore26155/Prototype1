@@ -63,7 +63,7 @@ async def get_findings(
                 } if finding.evidence_file else None,
                 "risk_score": finding.risk_score,
                 "remediation": finding.remediation,
-                "created_at": finding.created_at.isoformat()
+                "created_at": finding.created_at.isoformat() if finding.created_at else None
             })
         
         return {

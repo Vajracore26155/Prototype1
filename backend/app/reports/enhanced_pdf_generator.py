@@ -32,8 +32,21 @@ from typing import Dict, List, Any, Optional, Tuple
 from io import BytesIO
 import os
 import logging
+from xml.sax.saxutils import escape as _xml_escape
 
 logger = logging.getLogger(__name__)
+
+
+def _esc(v: Any) -> str:
+    """Escape user-controlled text for ReportLab Paragraph (XML)."""
+    if v is None:
+        return "N/A"
+    try:
+        s = str(v)
+    except Exception:
+        return "N/A"
+    # escape &, <, > ; keep <b>, <i>, <font>, <br/> we generate ourselves (callers escape inputs first)
+    return _xml_escape(s)
 
 
 class EnhancedPDFReportGenerator:
@@ -56,30 +69,31 @@ class EnhancedPDFReportGenerator:
         self.colors = self._define_color_palette()
     
     def _define_color_palette(self) -> Dict[str, str]:
-        """Define professional color palette"""
+        """TATVA monochrome palette — matte black / white / gray only"""
         return {
-            'primary': '#2c3e50',      # Dark blue-gray
-            'secondary': '#3498db',     # Professional blue
-            'success': '#27ae60',       # Green
-            'warning': '#f39c12',       # Orange
-            'danger': '#e74c3c',        # Red
-            'critical': '#8e44ad',      # Purple
-            'info': '#17a2b8',          # Cyan
-            'light': '#ecf0f1',         # Light gray
-            'dark': '#2c3e50',          # Dark gray
-            'muted': '#6c757d'          # Muted gray
+            'primary': '#1C1C1C',
+            'secondary': '#333333',
+            'success': '#1C1C1C',
+            'warning': '#4B5468',
+            'danger': '#1C1C1C',
+            'critical': '#000000',
+            'info': '#4B5468',
+            'light': '#F1F3F7',
+            'dark': '#1C1C1C',
+            'muted': '#6E6E6E'
         }
     
     def _create_enhanced_styles(self):
         """Create comprehensive custom paragraph styles"""
         
-        # Executive styles
+        # Executive styles — big, bold, monochrome
         self.styles.add(ParagraphStyle(
             name='ExecutiveTitle',
             parent=self.styles['Heading1'],
-            fontSize=28,
-            textColor=colors.HexColor('#2c3e50'),
-            spaceAfter=20,
+            fontSize=44,
+            leading=44,
+            textColor=colors.HexColor('#1C1C1C'),
+            spaceAfter=10,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
@@ -87,9 +101,10 @@ class EnhancedPDFReportGenerator:
         self.styles.add(ParagraphStyle(
             name='CompanyTitle',
             parent=self.styles['Heading2'],
-            fontSize=20,
-            textColor=colors.HexColor('#3498db'),
-            spaceAfter=30,
+            fontSize=15,
+            leading=18,
+            textColor=colors.HexColor('#1C1C1C'),
+            spaceAfter=26,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
         ))
@@ -98,24 +113,25 @@ class EnhancedPDFReportGenerator:
         self.styles.add(ParagraphStyle(
             name='SectionTitle',
             parent=self.styles['Heading1'],
-            fontSize=16,
-            textColor=colors.HexColor('#2c3e50'),
-            spaceAfter=15,
-            spaceBefore=25,
+            fontSize=17,
+            leading=20,
+            textColor=colors.white,
+            spaceAfter=16,
+            spaceBefore=28,
             fontName='Helvetica-Bold',
-            borderWidth=1,
-            borderColor=colors.HexColor('#3498db'),
-            borderPadding=8,
-            backColor=colors.HexColor('#ecf0f1')
+            borderWidth=0,
+            borderPadding=10,
+            backColor=colors.HexColor('#1C1C1C')
         ))
         
         self.styles.add(ParagraphStyle(
             name='SubsectionTitle',
             parent=self.styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#34495e'),
+            fontSize=13,
+            leading=16,
+            textColor=colors.HexColor('#1C1C1C'),
             spaceAfter=10,
-            spaceBefore=15,
+            spaceBefore=18,
             fontName='Helvetica-Bold'
         ))
         
@@ -152,8 +168,8 @@ class EnhancedPDFReportGenerator:
         ))
         
         self.styles.add(ParagraphStyle(
-            name='Code',
-            parent=self.styles['Code'],
+            name='EnhancedCode',
+            parent=self.styles['Normal'],
             fontSize=9,
             textColor=colors.HexColor('#c7254e'),
             backColor=colors.HexColor('#f8f9fa'),
@@ -167,12 +183,12 @@ class EnhancedPDFReportGenerator:
             borderPadding=6
         ))
         
-        # Severity and priority styles
+        # Severity — grayscale weight ladder (no color)
         severity_colors = {
-            'CRITICAL': '#8e44ad',  # Purple
-            'HIGH': '#e74c3c',      # Red
-            'MEDIUM': '#f39c12',    # Orange
-            'LOW': '#95a5a6'        # Gray
+            'CRITICAL': '#000000',
+            'HIGH': '#1C1C1C',
+            'MEDIUM': '#4B5468',
+            'LOW': '#9AA3B2'
         }
         
         for severity, color in severity_colors.items():
@@ -185,12 +201,12 @@ class EnhancedPDFReportGenerator:
                 spaceAfter=8
             ))
         
-        # Status styles
+        # Status styles — monochrome
         self.styles.add(ParagraphStyle(
             name='StatusPass',
             parent=self.styles['BodyText'],
             fontSize=10,
-            textColor=colors.HexColor('#27ae60'),
+            textColor=colors.HexColor('#1C1C1C'),
             fontName='Helvetica-Bold'
         ))
         
@@ -198,7 +214,7 @@ class EnhancedPDFReportGenerator:
             name='StatusFail',
             parent=self.styles['BodyText'],
             fontSize=10,
-            textColor=colors.HexColor('#e74c3c'),
+            textColor=colors.HexColor('#000000'),
             fontName='Helvetica-Bold'
         ))
         
@@ -307,21 +323,23 @@ class EnhancedPDFReportGenerator:
             raise
     
     def _create_professional_cover_page(self, audit_data: Dict, config_data: Dict, vendor_info: Dict) -> List:
-        """Create professional cover page with vendor branding"""
+        """TATVA monochrome cover — vendor name, time, IDs, proper spacing"""
         elements = []
         
-        # Title section
-        elements.append(Spacer(1, 1*inch))
+        # Brand eyebrow
+        elements.append(Spacer(1, 0.7*inch))
+        elements.append(Paragraph("TATVA BY TEAM VAJRACORE", self.styles['Caption']))
+        elements.append(Spacer(1, 0.15*inch))
         elements.append(Paragraph("SECURITY AUDIT REPORT", self.styles['ExecutiveTitle']))
-        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Spacer(1, 0.2*inch))
         
         # Company name
-        company_name = vendor_info.get('company', 'Unknown Company')
+        company_name = _esc(vendor_info.get('company', 'Unknown Company'))
         elements.append(Paragraph(f"{company_name}", self.styles['CompanyTitle']))
         elements.append(Spacer(1, 0.5*inch))
         
         # Configuration information
-        config_filename = audit_data.get('configuration', {}).get('filename', 'Unknown Configuration')
+        config_filename = _esc(audit_data.get('configuration', {}).get('filename', 'Unknown Configuration'))
         elements.append(Paragraph(f"Configuration: {config_filename}", self.styles['SubsectionTitle']))
         elements.append(Spacer(1, 0.2*inch))
         
@@ -346,10 +364,10 @@ class EnhancedPDFReportGenerator:
         metadata_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#34495e')),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#1C1C1C')),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#333333')),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D9E1EC')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 8),
@@ -360,19 +378,12 @@ class EnhancedPDFReportGenerator:
         elements.append(metadata_table)
         elements.append(Spacer(1, 1*inch))
         
-        # Risk level indicator
+        # Risk level indicator — monochrome weight, no color
         risk_level = audit_summary.get('risk_level', 'UNKNOWN').upper()
-        risk_colors = {
-            'LOW': '#27ae60',
-            'MEDIUM': '#f39c12', 
-            'HIGH': '#e74c3c',
-            'CRITICAL': '#8e44ad'
-        }
-        risk_color = risk_colors.get(risk_level, '#6c757d')
         
         elements.append(Paragraph(f'<b>OVERALL RISK ASSESSMENT</b>', self.styles['SubsectionTitle']))
         elements.append(Paragraph(
-            f'<font color="{risk_color}" size="16"><b>{risk_level} RISK</b></font>',
+            f'<font color="#1C1C1C" size="18"><b>{risk_level} RISK</b></font>',
             self.styles['Professional']
         ))
         
@@ -414,7 +425,7 @@ class EnhancedPDFReportGenerator:
         • Overall Compliance Score: <b>{compliance_score}%</b>
         • Risk Level: <b>{risk_level}</b>
         • Security Posture: <b>{security_posture}</b>
-        • AI Interpretation Confidence: <b>{parsing_analysis.get('interpretation_confidence', 0)*100:.1f}%</b>
+        • AI Interpretation Confidence: <b>{(parsing_analysis.get('interpretation_confidence') or 0)*100:.1f}%</b>
         """
         
         elements.append(Paragraph(overview_text, self.styles['Professional']))
@@ -440,11 +451,12 @@ class EnhancedPDFReportGenerator:
         findings_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#dee2e6')),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ecf0f1')),
-            ('TEXTCOLOR', (0, 1), (0, 4), colors.HexColor('#e74c3c')),
+            ('GRID', (0, 0), (-1, -2), 0.5, colors.HexColor('#D9E1EC')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1C1C1C')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 1), (0, -1), colors.HexColor('#1C1C1C')),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#2c3e50')),
+            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#1C1C1C')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
@@ -502,14 +514,16 @@ class EnhancedPDFReportGenerator:
         elements.append(Paragraph("Configuration Analysis", self.styles['SubsectionTitle']))
         
         config_info = audit_data.get('configuration', {})
-        vendor_detected = config_info.get('vendor', 'Unknown')
+        vendor_detected = _esc(config_info.get('vendor', 'Unknown'))
         vendor_confidence = config_info.get('vendor_confidence', 0)
+        _fh = config_info.get('file_hash') or 'N/A'
+        _fh_short = (_fh[:16] + '...') if len(_fh) > 16 else _fh
         
         config_text = f"""
         <b>Device Information:</b>
-        • Configuration File: {config_info.get('filename', 'N/A')}
-        • Detected Vendor: {vendor_detected} ({vendor_confidence*100:.1f}% confidence)
-        • File Hash: {config_info.get('file_hash', 'N/A')[:16]}...
+        • Configuration File: {_esc(config_info.get('filename', 'N/A'))}
+        • Detected Vendor: {vendor_detected} ({(vendor_confidence or 0)*100:.1f}% confidence)
+        • File Hash: {_esc(_fh_short)}
         """
         
         elements.append(Paragraph(config_text, self.styles['Professional']))
@@ -529,7 +543,7 @@ class EnhancedPDFReportGenerator:
         • Total Configuration Lines: {total_lines:,}
         • Successfully Interpreted: {interpreted_lines:,} lines ({interpretation_rate:.1f}%)
         • Uninterpreted Sections: {parsing_analysis.get('uninterpreted_lines', 0):,} lines
-        • Overall AI Confidence: {confidence*100:.1f}%
+        • Overall AI Confidence: {(confidence or 0)*100:.1f}%
         • Pending AI Mappings: {parsing_analysis.get('pending_ai_mappings', 0)}
         """
         
@@ -623,10 +637,11 @@ class EnhancedPDFReportGenerator:
         
         vendor_detection = config_data.get('vendor_detection', {})
         
+        vendor_detection = config_data.get('vendor_detection', {}) or {}
         vendor_text = f"""
         <b>Device Identification Results:</b>
-        • Detected Vendor: {vendor_detection.get('detected_vendor', 'Unknown')}
-        • Detection Confidence: {vendor_detection.get('confidence', 0)*100:.1f}%
+        • Detected Vendor: {_esc(vendor_detection.get('detected_vendor', 'Unknown'))}
+        • Detection Confidence: {(vendor_detection.get('confidence') or 0)*100:.1f}%
         • Analysis Method: AI pattern recognition and signature matching
         """
         
@@ -636,17 +651,17 @@ class EnhancedPDFReportGenerator:
         # Configuration file preview (first 20 lines)
         elements.append(Paragraph("Configuration Preview (Sanitized)", self.styles['SubsectionTitle']))
         
-        preview_content = file_content.get('preview', '')
+        preview_content = file_content.get('preview', '') or ''
         if preview_content:
             # Take first 20 lines for the PDF
             preview_lines = preview_content.split('\n')[:20]
-            preview_text = '\n'.join(preview_lines)
+            preview_text = _esc('\n'.join(preview_lines)).replace('\n', '<br/>')
             
             elements.append(Paragraph(
                 "First 20 lines of configuration (sensitive data sanitized):",
                 self.styles['Metadata']
             ))
-            elements.append(Paragraph(preview_text, self.styles['Code']))
+            elements.append(Paragraph(preview_text, self.styles['EnhancedCode']))
             
             if len(preview_lines) < file_stats.get('total_lines', 0):
                 elements.append(Paragraph(
@@ -721,8 +736,18 @@ class EnhancedPDFReportGenerator:
         
         elements.append(Paragraph(overview_text, self.styles['Professional']))
         elements.append(Spacer(1, 0.2*inch))
-        
-        # Detailed findings by severity
+
+        # Grayscale severity chart (monochrome, never breaks the report)
+        try:
+            elements.append(Paragraph("Severity Distribution (grayscale)", self.styles['SubsectionTitle']))
+            chart = self._severity_chart(by_severity)
+            if chart is not None:
+                elements.append(chart)
+                elements.append(Spacer(1, 0.15*inch))
+        except Exception:
+            pass
+
+        # Detailed findings by severity — each severity starts cleanly
         severity_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
         
         for severity in severity_order:
@@ -739,69 +764,103 @@ class EnhancedPDFReportGenerator:
         
         return elements
     
+    def _severity_chart(self, by_severity: Dict) -> Any:
+        """Grayscale vertical bar chart: Critical/High/Medium/Low counts."""
+        try:
+            vals = [
+                int(by_severity.get('critical', 0) or 0),
+                int(by_severity.get('high', 0) or 0),
+                int(by_severity.get('medium', 0) or 0),
+                int(by_severity.get('low', 0) or 0),
+            ]
+            if sum(vals) == 0:
+                return None
+            drawing = Drawing(460, 170)
+            chart = VerticalBarChart()
+            chart.x = 50
+            chart.y = 30
+            chart.height = 120
+            chart.width = 380
+            chart.data = [vals]
+            chart.categoryAxis.categoryNames = ['Critical', 'High', 'Medium', 'Low']
+            chart.categoryAxis.labels.fontSize = 8
+            chart.categoryAxis.labels.fontName = 'Helvetica-Bold'
+            chart.valueAxis.labels.fontSize = 8
+            chart.barLabels.fontSize = 8
+            chart.barLabels.fontName = 'Helvetica-Bold'
+            chart.bars[0].fillColor = colors.HexColor('#1C1C1C')
+            drawing.add(chart)
+            # Grayscale: single ink fill reads premium in B/W print; categories labeled below
+            return drawing
+        except Exception:
+            return None
+
     def _format_detailed_finding(self, finding: Dict, number: int) -> List:
         """Format a single finding with comprehensive details"""
         elements = []
         
-        severity = finding.get('severity', 'UNKNOWN')
-        title = finding.get('rule_name', 'Unknown Finding')
-        status = finding.get('status', 'UNKNOWN')
+        severity = (finding.get('severity') or 'UNKNOWN').upper()
+        if severity not in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW'):
+            severity = 'LOW'
+        title = _esc(finding.get('rule_name', 'Unknown Finding'))
         
         # Finding header
         header_text = f"<b>{number}. [{severity}] {title}</b>"
-        elements.append(Paragraph(header_text, self.styles[f'Severity{severity}']))
+        style_key = f'Severity{severity}' if f'Severity{severity}' in self.styles else 'Professional'
+        elements.append(Paragraph(header_text, self.styles[style_key]))
         
         # Basic information
-        description = finding.get('description', 'No description available')
+        description = _esc(finding.get('description', 'No description available'))
         elements.append(Paragraph(f"<b>Description:</b> {description}", self.styles['Professional']))
         
         # Technical details
-        technical_details = finding.get('technical_details', {})
+        technical_details = finding.get('technical_details', {}) or {}
         if technical_details.get('expected') or technical_details.get('actual'):
             tech_text = f"""
             <b>Technical Analysis:</b>
-            • Expected: {technical_details.get('expected', 'Not specified')}
-            • Actual: {technical_details.get('actual', 'Not specified')}
-            • Field Path: {technical_details.get('field_path', 'Not specified')}
+            • Expected: {_esc(technical_details.get('expected', 'Not specified'))}
+            • Actual: {_esc(technical_details.get('actual', 'Not specified'))}
+            • Field Path: {_esc(technical_details.get('field_path', 'Not specified'))}
             """
-            if technical_details.get('risk_score'):
-                tech_text += f"• Risk Score: {technical_details.get('risk_score')}/10"
+            if technical_details.get('risk_score') is not None:
+                tech_text += f"• Risk Score: {_esc(technical_details.get('risk_score'))}/10"
             
             elements.append(Paragraph(tech_text, self.styles['Technical']))
         
         # Evidence section
-        evidence = finding.get('evidence', {})
+        evidence = finding.get('evidence', {}) or {}
         if evidence.get('evidence_text'):
             elements.append(Paragraph("<b>Evidence:</b>", self.styles['Technical']))
-            evidence_text = evidence.get('evidence_text', '')[:200]  # Truncate for PDF
-            if len(evidence.get('evidence_text', '')) > 200:
+            raw_ev = evidence.get('evidence_text', '') or ''
+            evidence_text = _esc(raw_ev[:300])
+            if len(raw_ev) > 300:
                 evidence_text += '...'
-            elements.append(Paragraph(evidence_text, self.styles['Code']))
+            elements.append(Paragraph(evidence_text, self.styles['EnhancedCode']))
             
             if evidence.get('evidence_line'):
                 elements.append(Paragraph(
-                    f"Configuration line {evidence.get('evidence_line')}: {evidence.get('evidence_file', 'Unknown file')}",
+                    f"Configuration line {_esc(evidence.get('evidence_line'))}: {_esc(evidence.get('evidence_file', 'Unknown file'))}",
                     self.styles['Metadata']
                 ))
         
         # Remediation guidance
-        remediation = finding.get('remediation', {})
+        remediation = finding.get('remediation', {}) or {}
         if remediation.get('guidance') and remediation.get('guidance') != 'No remediation guidance available':
             rem_text = f"""
             <b>Remediation Guidance:</b>
-            {remediation.get('guidance')}
+            {_esc(remediation.get('guidance'))}
             
-            <b>Priority:</b> {remediation.get('priority', 'Unknown')}/5
-            <b>Estimated Effort:</b> {remediation.get('estimated_effort', 'Unknown')}
-            <b>Business Impact:</b> {remediation.get('business_impact', 'Unknown')}
+            <b>Priority:</b> {_esc(remediation.get('priority', 'Unknown'))}/5
+            <b>Estimated Effort:</b> {_esc(remediation.get('estimated_effort', 'Unknown'))}
+            <b>Business Impact:</b> {_esc(remediation.get('business_impact', 'Unknown'))}
             """
             elements.append(Paragraph(rem_text, self.styles['Technical']))
         
         # Compliance mapping
-        compliance_mapping = finding.get('compliance_mapping', {})
-        frameworks = compliance_mapping.get('frameworks', [])
+        compliance_mapping = finding.get('compliance_mapping', {}) or {}
+        frameworks = compliance_mapping.get('frameworks', []) or []
         if frameworks:
-            compliance_text = f"<b>Compliance Frameworks:</b> {', '.join(frameworks)}"
+            compliance_text = f"<b>Compliance Frameworks:</b> {_esc(', '.join([str(x) for x in frameworks]))}"
             elements.append(Paragraph(compliance_text, self.styles['Metadata']))
         
         return elements
@@ -892,30 +951,34 @@ class EnhancedPDFReportGenerator:
         """Format evidence traceability for a single finding"""
         elements = []
         
-        evidence = finding.get('evidence', {})
-        title = finding.get('rule_name', 'Unknown Finding')
-        severity = finding.get('severity', 'UNKNOWN')
+        evidence = finding.get('evidence', {}) or {}
+        title = _esc(finding.get('rule_name', 'Unknown Finding'))
+        severity = (finding.get('severity') or 'UNKNOWN').upper()
+        if severity not in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW'):
+            severity = 'LOW'
         
         # Evidence header
-        elements.append(Paragraph(f"<b>[{severity}] {title}</b>", self.styles[f'Severity{severity}']))
+        style_key = f'Severity{severity}' if f'Severity{severity}' in self.styles else 'Professional'
+        elements.append(Paragraph(f"<b>[{severity}] {title}</b>", self.styles[style_key]))
         
         # Evidence details
         if evidence.get('evidence_text'):
             trace_text = f"""
             <b>Evidence Source:</b>
-            • File: {evidence.get('evidence_file', 'Unknown')}
-            • Line Number: {evidence.get('evidence_line', 'Unknown')}
-            • Configuration Context: {len(evidence.get('configuration_context', []))} surrounding lines
+            • File: {_esc(evidence.get('evidence_file', 'Unknown'))}
+            • Line Number: {_esc(evidence.get('evidence_line', 'Unknown'))}
+            • Configuration Context: {len(evidence.get('configuration_context', []) or [])} surrounding lines
             
             <b>Evidence Extract:</b>
             """
             elements.append(Paragraph(trace_text, self.styles['Technical']))
             
             # Evidence text (truncated for PDF)
-            evidence_text = evidence.get('evidence_text', '')[:150]
-            if len(evidence.get('evidence_text', '')) > 150:
+            raw = evidence.get('evidence_text', '') or ''
+            evidence_text = _esc(raw[:200])
+            if len(raw) > 200:
                 evidence_text += '...'
-            elements.append(Paragraph(evidence_text, self.styles['Code']))
+            elements.append(Paragraph(evidence_text, self.styles['EnhancedCode']))
         
         return elements
     
@@ -1001,30 +1064,33 @@ class EnhancedPDFReportGenerator:
         """Format a single remediation item"""
         elements = []
         
-        severity = item.get('severity', priority_level)
-        title = item.get('rule_name', 'Unknown Issue')
+        severity = (item.get('severity') or priority_level or 'LOW').upper()
+        if severity not in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW'):
+            severity = 'LOW'
+        title = _esc(item.get('rule_name', 'Unknown Issue'))
         
         # Item header
-        elements.append(Paragraph(f"<b>{number}. [{severity}] {title}</b>", self.styles[f'Severity{severity}']))
+        style_key = f'Severity{severity}' if f'Severity{severity}' in self.styles else 'Professional'
+        elements.append(Paragraph(f"<b>{number}. [{severity}] {title}</b>", self.styles[style_key]))
         
         # Remediation guidance
-        remediation = item.get('remediation', {})
+        remediation = item.get('remediation', {}) or {}
         if remediation.get('guidance'):
-            elements.append(Paragraph(f"<b>Action Required:</b> {remediation.get('guidance')}", self.styles['Professional']))
+            elements.append(Paragraph(f"<b>Action Required:</b> {_esc(remediation.get('guidance'))}", self.styles['Professional']))
         
         # Implementation details
         impl_text = f"""
         <b>Implementation Details:</b>
-        • Priority Level: {remediation.get('priority', 'Unknown')}/5
-        • Estimated Effort: {remediation.get('estimated_effort', 'Unknown')}
-        • Business Impact: {remediation.get('business_impact', 'Unknown')}
+        • Priority Level: {_esc(remediation.get('priority', 'Unknown'))}/5
+        • Estimated Effort: {_esc(remediation.get('estimated_effort', 'Unknown'))}
+        • Business Impact: {_esc(remediation.get('business_impact', 'Unknown'))}
         """
         
         # Add compliance frameworks if available
-        compliance_mapping = item.get('compliance_mapping', {})
-        frameworks = compliance_mapping.get('frameworks', [])
+        compliance_mapping = item.get('compliance_mapping', {}) or {}
+        frameworks = compliance_mapping.get('frameworks', []) or []
         if frameworks:
-            impl_text += f"\n• Compliance Frameworks: {', '.join(frameworks)}"
+            impl_text += f"\n• Compliance Frameworks: {_esc(', '.join([str(x) for x in frameworks]))}"
         
         elements.append(Paragraph(impl_text, self.styles['Technical']))
         
@@ -1064,7 +1130,7 @@ class EnhancedPDFReportGenerator:
             ['Metric', 'Value', 'Assessment'],
             [
                 'Overall Interpretation Confidence',
-                f"{parsing_analysis.get('interpretation_confidence', 0)*100:.1f}%",
+                f"{(parsing_analysis.get('interpretation_confidence') or 0)*100:.1f}%",
                 self._assess_confidence_level(parsing_analysis.get('interpretation_confidence', 0))
             ],
             [
@@ -1120,8 +1186,10 @@ class EnhancedPDFReportGenerator:
         
         return elements
     
-    def _assess_confidence_level(self, confidence: float) -> str:
+    def _assess_confidence_level(self, confidence: Optional[float]) -> str:
         """Assess confidence level description"""
+        if confidence is None:
+            confidence = 0.0
         if confidence >= 0.9:
             return "Excellent"
         elif confidence >= 0.8:
@@ -1199,31 +1267,34 @@ class EnhancedPDFReportGenerator:
         return elements
     
     def _create_header_footer(self, canvas, doc):
-        """Create header and footer for each page"""
+        """TATVA monochrome header/footer"""
         canvas.saveState()
         
         # Header
-        canvas.setFont('Helvetica-Bold', 12)
-        canvas.setFillColor(colors.HexColor('#2c3e50'))
-        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 30, "SECURITY AUDIT REPORT")
+        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFillColor(colors.HexColor('#1C1C1C'))
+        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 30, "TATVA  |  SECURITY AUDIT REPORT")
         
-        canvas.setFont('Helvetica', 10)
-        canvas.setFillColor(colors.HexColor('#6c757d'))
+        canvas.setFont('Helvetica', 9)
+        canvas.setFillColor(colors.HexColor('#6E6E6E'))
         canvas.drawRightString(
             doc.width + doc.leftMargin, 
             doc.height + doc.topMargin - 30, 
-            f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+            f"Team Vajracore  •  {datetime.now().strftime('%B %d, %Y')}"
         )
         
         # Header line
-        canvas.setStrokeColor(colors.HexColor('#dee2e6'))
+        canvas.setStrokeColor(colors.HexColor('#1C1C1C'))
+        canvas.setLineWidth(1.2)
         canvas.line(doc.leftMargin, doc.height + doc.topMargin - 40, 
                    doc.width + doc.leftMargin, doc.height + doc.topMargin - 40)
         
         # Footer
-        canvas.setFont('Helvetica', 9)
-        canvas.setFillColor(colors.HexColor('#6c757d'))
-        canvas.drawString(doc.leftMargin, 30, "CONFIDENTIAL - This report contains sensitive security information")
+        canvas.setFont('Helvetica-Bold', 8)
+        canvas.setFillColor(colors.HexColor('#1C1C1C'))
+        canvas.drawString(doc.leftMargin, 30, "CONFIDENTIAL  •  TATVA BY TEAM VAJRACORE")
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.HexColor('#6E6E6E'))
         canvas.drawRightString(doc.width + doc.leftMargin, 30, f"Page {doc.page}")
         
         # Footer line

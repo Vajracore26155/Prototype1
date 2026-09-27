@@ -32,9 +32,71 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: #F6F6F7;
   background-attachment: fixed;
+  color: #1C1C1C;
 }
+
+/* TATVA premium theme — black / white / gray + bluish-white cyber mist */
+.tatva-hero-bg {
+  background:
+    radial-gradient(900px 480px at 82% 30%, rgba(56, 120, 200, 0.20), transparent 60%),
+    radial-gradient(700px 420px at 70% 62%, rgba(56, 120, 200, 0.12), transparent 62%),
+    radial-gradient(520px 300px at 12% 82%, rgba(15, 30, 60, 0.06), transparent 65%),
+    linear-gradient(180deg, #FFFFFF 0%, #F4F4F4 46%, #ECECEC 100%);
+}
+.tatva-grid {
+  background-image:
+    linear-gradient(rgba(15, 25, 45, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 25, 45, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(80% 75% at 50% 35%, black 30%, transparent 78%);
+}
+.tatva-display {
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: #1C1C1C;
+}
+.tatva-box {
+  border: 1.5px solid #1C1C1C;
+  background: rgba(255, 255, 255, 0.72);
+}
+.tatva-eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  font-size: 12px;
+  color: #333333;
+}
+.tatva-tagline {
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  font-size: 12px;
+  color: #333333;
+}
+.tatva-card {
+  background: #FFFFFF;
+  border: 1px solid #D9E1EC;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(10, 15, 30, 0.05), 0 12px 32px -16px rgba(10, 15, 30, 0.18);
+}
+.tatva-card:hover {
+  border-color: #1C1C1C;
+  box-shadow: 0 2px 4px rgba(10, 15, 30, 0.06), 0 18px 44px -18px rgba(10, 15, 30, 0.28);
+}
+.btn-ink {
+  background: #1C1C1C;
+  color: #fff;
+  font-weight: 700;
+}
+.btn-ink:hover { background: #000; }
+.btn-paper {
+  background: #fff;
+  color: #1C1C1C;
+  border: 1.5px solid #1C1C1C;
+  font-weight: 700;
+}
+.btn-paper:hover { background: #1C1C1C; color: #fff; }
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {

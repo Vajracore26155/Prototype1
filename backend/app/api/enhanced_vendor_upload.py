@@ -21,13 +21,14 @@ from app.utils.upload_progress import (
 )
 from app.findings.engine import run_configuration_audit
 from app.ingestion.file_handler import ingest_configuration
-from app.utils.file_storage import save_uploaded_file, calculate_file_hash
-from app.utils.id_generation import generate_config_id
+from app.storage import save_uploaded_file, generate_config_id
+from app.storage.storage_backend import calculate_file_hash
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["Enhanced Vendor Upload"])
+router = APIRouter(tags=["Enhanced Vendor Upload"])
 
+@router.post("/vendor/enhanced-upload")
 @router.post("/vendor/upload/single")
 async def enhanced_single_upload(
     background_tasks: BackgroundTasks,
@@ -273,6 +274,7 @@ async def enhanced_single_upload(
             }
         )
 
+@router.post("/vendor/enhanced-bulk-upload")
 @router.post("/vendor/upload/bulk")
 async def enhanced_bulk_upload(
     background_tasks: BackgroundTasks,
@@ -583,6 +585,7 @@ async def _run_background_audit(
         logger.error(f"Background audit failed for config {config_id}: {e}")
         update_file_error(session_id, file_id, f"Audit failed: {str(e)}", "AUDIT_ERROR")
 
+@router.get("/vendor/enhanced-upload/progress/{session_id}")
 @router.get("/vendor/upload/progress/{session_id}")
 async def get_upload_progress(
     session_id: str,
@@ -635,6 +638,7 @@ async def get_upload_progress(
         "data": progress_data
     }
 
+@router.get("/vendor/enhanced-upload/history")
 @router.get("/vendor/upload/history")
 async def get_upload_history(
     limit: int = 20,
@@ -662,7 +666,7 @@ async def get_upload_history(
             # Get latest audit if exists
             latest_audit = db.query(Audit).filter(
                 Audit.configuration_id == config.id
-            ).order_by(Audit.created_at.desc()).first()
+            ).order_by(Audit.started_at.desc()).first()
             
             config_data = {
                 "config_id": config.config_id,

@@ -84,91 +84,132 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
   const loadAuditFindings = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      await simulateAuditFindingsLoad();
+      const { getVendorAudits, getVendorAuditEnhanced } = await import('../services/vendorApi');
+      const auditsResp: any = await getVendorAudits();
+      const audits: any[] = auditsResp?.data?.audits || [];
+      if (!audits || audits.length === 0) {
+        setFindings([]);
+        setAnalysis({
+          total_findings: 0,
+          severity_breakdown: { critical: 0, high: 0, medium: 0, low: 0 },
+          status_breakdown: { pass: 0, fail: 0, warning: 0, unknown: 0 },
+          compliance_frameworks: [],
+          risk_categories: [],
+        });
+        return;
+      }
+      // If a specific (non-dummy) auditId is given, prioritize it; otherwise aggregate across recent audits
+      const isDummy = !auditId || auditId === 'AUD-001234';
+      const targetAudits = isDummy ? audits.slice(0, 6) : audits.filter((a: any) => a.audit_id === auditId);
+      const listToLoad = targetAudits.length > 0 ? targetAudits : audits.slice(0, 6);
+
+      const allDetails: DetailedFinding[] = [];
+      for (const a of listToLoad) {
+        try {
+          const enh: any = await getVendorAuditEnhanced(a.audit_id);
+          const details: any[] = enh?.data?.findings?.details || [];
+          for (const f of details) {
+            allDetails.push({
+              finding_id: f.finding_id,
+              rule_id: f.rule_id,
+              rule_name: f.rule_name || 'Finding',
+              description: f.description || '',
+              severity: (f.severity || 'LOW') as DetailedFinding['severity'],
+              status: (f.status || 'UNKNOWN') as DetailedFinding['status'],
+              technical_details: {
+                expected: String(f.technical_details?.expected ?? ''),
+                actual: String(f.technical_details?.actual ?? ''),
+                field_path: String(f.technical_details?.field_path ?? ''),
+                risk_score: Number(f.technical_details?.risk_score ?? 0),
+              },
+              evidence: {
+                evidence_file: String(f.evidence?.evidence_file ?? ''),
+                evidence_line: Number(f.evidence?.evidence_line ?? 0),
+                evidence_text: String(f.evidence?.evidence_text ?? ''),
+                configuration_context: Array.isArray(f.evidence?.configuration_context) ? f.evidence.configuration_context.map(String) : [],
+              },
+              remediation: {
+                guidance: String(f.remediation?.guidance ?? ''),
+                priority: Number(f.remediation?.priority ?? 3),
+                estimated_effort: String(f.remediation?.estimated_effort ?? ''),
+                business_impact: String(f.remediation?.business_impact ?? ''),
+              },
+              compliance_mapping: {
+                frameworks: Array.isArray(f.compliance_mapping?.frameworks) ? f.compliance_mapping.frameworks.map(String) : [],
+                standards: Array.isArray(f.compliance_mapping?.standards) ? f.compliance_mapping.standards.map(String) : [],
+              },
+              created_at: String(f.created_at || new Date().toISOString()),
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to load audit', a.audit_id, e);
+        }
+      }
+
+      // Build real analysis from aggregated findings
+      const bySev = { critical: 0, high: 0, medium: 0, low: 0 };
+      const byStatus = { pass: 0, fail: 0, warning: 0, unknown: 0 };
+      const fwMap = new Map<string, { total: number; pass: number; fail: number }>();
+      const catMap = new Map<string, { total: number; critical: number; riskSum: number; riskN: number }>();
+      const catFor = (ruleId: string) => {
+        const r = (ruleId || '').toUpperCase();
+        if (r.includes('SSH') || r.includes('TELNET') || r.startsWith('NET-')) return 'Network Security';
+        if (r.includes('AUTH') || r.includes('USER') || r.includes('ACCESS')) return 'Access Control';
+        if (r.includes('ENCRYPT') || r.includes('CRYPTO')) return 'Data Protection';
+        if (r.includes('LOG') || r.includes('AUDIT')) return 'Logging';
+        if (r.includes('PASS') || r.includes('PWD')) return 'Authentication';
+        return 'Other';
+      };
+      for (const f of allDetails) {
+        const s = (f.severity || '').toLowerCase();
+        if (s === 'critical') bySev.critical++;
+        else if (s === 'high') bySev.high++;
+        else if (s === 'medium') bySev.medium++;
+        else bySev.low++;
+        const st = (f.status || '').toLowerCase();
+        if (st === 'pass') byStatus.pass++;
+        else if (st === 'fail') byStatus.fail++;
+        else if (st === 'warning') byStatus.warning++;
+        else byStatus.unknown++;
+        const fws = f.compliance_mapping.frameworks.length > 0 ? f.compliance_mapping.frameworks : ['General'];
+        for (const fw of fws) {
+          const e = fwMap.get(fw) || { total: 0, pass: 0, fail: 0 };
+          e.total++;
+          if (f.status === 'PASS') e.pass++;
+          if (f.status === 'FAIL') e.fail++;
+          fwMap.set(fw, e);
+        }
+        const cat = catFor(f.rule_id);
+        const c = catMap.get(cat) || { total: 0, critical: 0, riskSum: 0, riskN: 0 };
+        c.total++;
+        if (f.severity === 'CRITICAL' && f.status === 'FAIL') c.critical++;
+        if (f.technical_details.risk_score) { c.riskSum += f.technical_details.risk_score; c.riskN++; }
+        catMap.set(cat, c);
+      }
+      setFindings(allDetails);
+      setAnalysis({
+        total_findings: allDetails.length,
+        severity_breakdown: bySev,
+        status_breakdown: byStatus,
+        compliance_frameworks: Array.from(fwMap.entries()).slice(0, 6).map(([framework, v]) => ({
+          framework,
+          total_controls: v.total,
+          passed_controls: v.pass,
+          failed_controls: v.fail,
+          compliance_percentage: v.total > 0 ? (v.pass / v.total) * 100 : 0,
+        })),
+        risk_categories: Array.from(catMap.entries()).map(([category, v]) => ({
+          category,
+          total_findings: v.total,
+          critical_findings: v.critical,
+          avg_risk_score: v.riskN > 0 ? v.riskSum / v.riskN : 0,
+        })),
+      });
     } catch (error) {
       console.error('Failed to load audit findings:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const simulateAuditFindingsLoad = async () => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Sample findings data
-    const sampleFindings: DetailedFinding[] = [
-      {
-        finding_id: 'FND-001234',
-        rule_id: 'NET-SSH-001',
-        rule_name: 'SSH Weak Encryption Prevention',
-        description: 'SSH service is configured with weak encryption algorithms that are vulnerable to cryptographic attacks.',
-        severity: 'CRITICAL',
-        status: 'FAIL',
-        technical_details: {
-          expected: 'aes256-ctr,aes192-ctr,aes128-ctr',
-          actual: 'aes128-cbc,3des-cbc',
-          field_path: 'remote_access.ssh.encryption_algorithms',
-          risk_score: 8.7
-        },
-        evidence: {
-          evidence_file: 'cisco_router_config.txt',
-          evidence_line: 247,
-          evidence_text: 'ip ssh version 2\nip ssh encryption aes128-cbc 3des-cbc',
-          configuration_context: [
-            'line 245: !',
-            'line 246: ip ssh version 2',
-            'line 247: ip ssh encryption aes128-cbc 3des-cbc',
-            'line 248: ip ssh authentication-retries 3',
-            'line 249: !'
-          ]
-        },
-        remediation: {
-          guidance: 'Configure SSH to use only strong encryption algorithms. Remove weak ciphers like 3DES and AES-CBC. Use AES-CTR or ChaCha20 family ciphers.',
-          priority: 1,
-          estimated_effort: 'Low (15-30 minutes)',
-          business_impact: 'High - Prevents potential data interception during SSH sessions'
-        },
-        compliance_mapping: {
-          frameworks: ['NIST', 'ISO 27001', 'PCI DSS'],
-          standards: ['SC-8', 'SC-13', 'Req 4.1']
-        },
-        created_at: '2024-01-15T10:30:00Z'
-      },
-      // Add more sample findings...
-    ];
-
-    // Sample analysis data
-    const sampleAnalysis: AuditAnalysis = {
-      total_findings: 145,
-      severity_breakdown: {
-        critical: 8,
-        high: 23,
-        medium: 45,
-        low: 69
-      },
-      status_breakdown: {
-        pass: 1234,
-        fail: 89,
-        warning: 45,
-        unknown: 12
-      },
-      compliance_frameworks: [
-        { framework: 'NIST CSF', total_controls: 156, passed_controls: 134, failed_controls: 22, compliance_percentage: 85.9 },
-        { framework: 'ISO 27001', total_controls: 89, passed_controls: 76, failed_controls: 13, compliance_percentage: 85.4 },
-        { framework: 'PCI DSS', total_controls: 67, passed_controls: 54, failed_controls: 13, compliance_percentage: 80.6 }
-      ],
-      risk_categories: [
-        { category: 'Network Security', total_findings: 45, critical_findings: 3, avg_risk_score: 6.8 },
-        { category: 'Access Control', total_findings: 32, critical_findings: 2, avg_risk_score: 5.9 },
-        { category: 'Data Protection', total_findings: 28, critical_findings: 2, avg_risk_score: 6.2 },
-        { category: 'Authentication', total_findings: 23, critical_findings: 1, avg_risk_score: 5.5 },
-        { category: 'Logging', total_findings: 17, critical_findings: 0, avg_risk_score: 4.3 }
-      ]
-    };
-
-    setFindings(sampleFindings);
-    setAnalysis(sampleAnalysis);
   };
 
   const filteredFindings = findings.filter(finding => {
@@ -197,30 +238,30 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'CRITICAL': return 'bg-red-100 text-red-800 border-red-200';
-      case 'HIGH': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'LOW': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'CRITICAL': return 'bg-ink-950 text-white border-ink-950';
+      case 'HIGH': return 'bg-ink-950 text-white border-ink-950';
+      case 'MEDIUM': return 'bg-mist-200 text-ink-950 border-line';
+      case 'LOW': return 'bg-white text-ink-900 border-line';
+      default: return 'bg-mist-100 text-ink-500 border-line';
     }
   };
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
-      case 'CRITICAL': return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case 'HIGH': return <AlertCircle className="w-4 h-4 text-orange-600" />;
-      case 'MEDIUM': return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'LOW': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'CRITICAL': return <AlertTriangle className="w-4 h-4 text-ink-950" />;
+      case 'HIGH': return <AlertCircle className="w-4 h-4 text-ink-950" />;
+      case 'MEDIUM': return <Clock className="w-4 h-4 text-ink-500" />;
+      case 'LOW': return <CheckCircle className="w-4 h-4 text-ink-950" />;
       default: return <XCircle className="w-4 h-4 text-gray-600" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'FAIL': return 'bg-red-100 text-red-800';
-      case 'PASS': return 'bg-green-100 text-green-800';
-      case 'WARNING': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'FAIL': return 'bg-ink-950 text-white';
+      case 'PASS': return 'bg-mist-200 text-ink-950';
+      case 'WARNING': return 'bg-white text-ink-900 border border-line';
+      default: return 'bg-mist-100 text-ink-500';
     }
   };
 
@@ -231,7 +272,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink-950"></div>
       </div>
     );
   }
@@ -242,7 +283,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
       {analysis && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Severity Overview */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="tatva-card p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Shield className="w-5 h-5 mr-2" />
               Severity Breakdown
@@ -250,37 +291,37 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <AlertTriangle className="w-4 h-4 text-ink-950" />
                   <span className="text-sm">Critical</span>
                 </div>
-                <span className="font-bold text-red-600">{analysis.severity_breakdown.critical}</span>
+                <span className="font-bold text-ink-950">{analysis.severity_breakdown.critical}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-orange-600" />
+                  <AlertCircle className="w-4 h-4 text-ink-950" />
                   <span className="text-sm">High</span>
                 </div>
-                <span className="font-bold text-orange-600">{analysis.severity_breakdown.high}</span>
+                <span className="font-bold text-ink-950">{analysis.severity_breakdown.high}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-yellow-600" />
+                  <Clock className="w-4 h-4 text-ink-500" />
                   <span className="text-sm">Medium</span>
                 </div>
-                <span className="font-bold text-yellow-600">{analysis.severity_breakdown.medium}</span>
+                <span className="font-bold text-ink-500">{analysis.severity_breakdown.medium}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-ink-950" />
                   <span className="text-sm">Low</span>
                 </div>
-                <span className="font-bold text-green-600">{analysis.severity_breakdown.low}</span>
+                <span className="font-bold text-ink-950">{analysis.severity_breakdown.low}</span>
               </div>
             </div>
           </div>
 
           {/* Compliance Frameworks */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="tatva-card p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Target className="w-5 h-5 mr-2" />
               Compliance Status
@@ -292,12 +333,9 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
                     <span className="text-sm font-medium">{framework.framework}</span>
                     <span className="text-sm font-bold">{framework.compliance_percentage.toFixed(1)}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-mist-200 rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full ${
-                        framework.compliance_percentage >= 90 ? 'bg-green-500' :
-                        framework.compliance_percentage >= 75 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
+                      className="h-2 rounded-full bg-ink-950"
                       style={{ width: `${framework.compliance_percentage}%` }}
                     />
                   </div>
@@ -311,7 +349,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
           </div>
 
           {/* Risk Categories */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="tatva-card p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2" />
               Risk Categories
@@ -339,7 +377,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
       )}
 
       {/* Filters and Controls */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="tatva-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
             {/* Search */}
@@ -422,7 +460,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
           </div>
         ) : (
           filteredFindings.map((finding) => (
-            <div key={finding.finding_id} className="bg-white rounded-lg border hover:shadow-lg transition-shadow">
+            <div key={finding.finding_id} className="tatva-card">
               {/* Main Finding Row */}
               <div className="p-6">
                 <div className="flex items-start justify-between">
@@ -463,39 +501,35 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Risk Score:</span>
-                        <div className="text-lg font-bold text-red-600">{finding.technical_details.risk_score.toFixed(1)}</div>
+                        <div className="text-lg font-bold text-ink-950">{finding.technical_details.risk_score.toFixed(1)}</div>
                         <span className="text-sm text-gray-500">Field Path:</span>
                         <div className="font-mono text-xs">{finding.technical_details.field_path}</div>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">Priority:</span>
+                        <span className="text-sm font-bold text-ink-500">Priority:</span>
                         <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            finding.remediation.priority <= 1 ? 'bg-red-500' :
-                            finding.remediation.priority <= 2 ? 'bg-orange-500' :
-                            finding.remediation.priority <= 3 ? 'bg-yellow-500' : 'bg-green-500'
-                          }`} />
-                          <span className="text-sm font-medium">Priority {finding.remediation.priority}</span>
+                          <div className="w-2 h-2 rounded-full bg-ink-950" />
+                          <span className="text-sm font-bold text-ink-900">Priority {finding.remediation.priority}</span>
                         </div>
-                        <span className="text-sm text-gray-500">Effort:</span>
-                        <div className="text-sm">{finding.remediation.estimated_effort}</div>
+                        <span className="text-sm font-bold text-ink-500">Effort:</span>
+                        <div className="text-sm font-bold text-ink-900">{finding.remediation.estimated_effort}</div>
                       </div>
                     </div>
 
                     {/* Description */}
                     <div className="mb-4">
-                      <p className="text-gray-700">{finding.description}</p>
+                      <p className="font-medium text-ink-900">{finding.description}</p>
                     </div>
 
                     {/* Compliance Frameworks */}
                     <div className="flex flex-wrap gap-2">
                       {finding.compliance_mapping.frameworks.map((framework, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                        <span key={index} className="px-2 py-1 bg-mist-100 border border-line text-ink-900 text-xs rounded font-bold">
                           {framework}
                         </span>
                       ))}
                       {finding.compliance_mapping.standards.map((standard, index) => (
-                        <span key={index} className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded">
+                        <span key={index} className="px-2 py-1 bg-white border border-line text-ink-500 text-xs rounded font-bold">
                           {standard}
                         </span>
                       ))}
@@ -506,7 +540,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
                   <div className="flex flex-col space-y-2 ml-6">
                     <button
                       onClick={() => toggleFindingExpansion(finding.finding_id)}
-                      className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                      className="flex items-center space-x-2 px-4 py-2 bg-ink-950 text-white rounded-xl hover:bg-black transition-colors"
                     >
                       <Eye className="w-4 h-4" />
                       <span>Details</span>
@@ -514,7 +548,7 @@ const DetailedAuditFindings: React.FC<{ auditId: string }> = ({ auditId }) => {
                     
                     <button
                       onClick={() => copyToClipboard(finding.finding_id)}
-                      className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      className="flex items-center space-x-2 px-4 py-2 bg-mist-200 text-ink-950 rounded-xl hover:bg-mist-100 transition-colors"
                     >
                       <Copy className="w-4 h-4" />
                       <span>Copy ID</span>

@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 import { 
   isVendorLoggedIn, 
-  getVendorAudit, 
+  getVendorAudit,
+  getVendorAuditFindings,
   downloadVendorAuditReport 
 } from '../services/vendorApi';
-import api from '../services/api';
 
 interface AuditDetails {
   audit_id: string;
@@ -75,24 +75,44 @@ export default function VendorAuditDetails() {
     setError('');
     
     try {
-      // Get audit details using vendor API
+      // Get audit details using vendor API (includes normalized findings)
       const auditResponse = await getVendorAudit(auditId!);
 
       if (auditResponse.success) {
         setAudit(auditResponse.data);
+        const embedded: any[] = Array.isArray((auditResponse.data as any)?.findings)
+          ? (auditResponse.data as any).findings
+          : [];
+        if (embedded.length > 0) {
+          setFindings(embedded);
+        }
         
-        // Load findings (using admin endpoint with vendor auth for now)
+        // Load findings via vendor-scoped endpoint (no JWT required)
         try {
-          const token = localStorage.getItem('vendor_session_token');
-          const findingsResponse = await api.get(`/audits/${auditId}/findings`, {
-            headers: { 'X-Vendor-Session-Token': token }
-          });
-          
-          if (findingsResponse.data.success) {
-            setFindings(findingsResponse.data.data || []);
+          const findingsResponse = await getVendorAuditFindings(auditId!);
+          const list = (findingsResponse as any)?.data?.findings || (findingsResponse as any)?.data?.data?.findings || [];
+          if (Array.isArray(list) && list.length > 0) {
+            // normalize to UI shape if backend returns raw shape
+            const norm = list.map((f: any) => ({
+              finding_id: f.finding_id,
+              rule_id: f.rule_id,
+              rule_name: f.rule_name || f.title || f.rule_id,
+              severity: f.severity || 'LOW',
+              category: f.category || 'General',
+              description: f.description || '',
+              evidence: typeof f.evidence === 'string' ? f.evidence : (f.evidence_text || f.evidence?.evidence_text || ''),
+              recommendation: f.recommendation || f.remediation || '',
+              status: f.status || 'UNKNOWN',
+              confidence_score: f.confidence_score ?? 0.95,
+            }));
+            setFindings(norm);
+          } else if (embedded.length === 0) {
+            // keep embedded (may be empty = truly no issues)
+            setFindings(embedded);
           }
         } catch (err) {
-          console.warn('Could not load findings:', err);
+          console.warn('Could not load findings, using embedded:', err);
+          // fallback already set from embedded
         }
       } else {
         setError('Failed to load audit details');
@@ -109,17 +129,7 @@ export default function VendorAuditDetails() {
     if (!auditId) return;
     
     try {
-      const blob = await downloadVendorAuditReport(auditId);
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `vendor_audit_report_${auditId}_${audit?.configuration.filename || 'config'}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await downloadVendorAuditReport(auditId);
     } catch (err: any) {
       console.error('Failed to download report:', err);
       setError('Failed to download report. Please try again.');
@@ -128,22 +138,22 @@ export default function VendorAuditDetails() {
 
   const getRiskLevelColor = (riskLevel: string) => {
     switch (riskLevel?.toLowerCase()) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'critical': return 'bg-ink-950 text-white border-ink-950';
+      case 'high': return 'bg-ink-950 text-white border-ink-950';
+      case 'medium': return 'bg-mist-200 text-ink-950 border-line';
+      case 'low': return 'bg-white text-ink-900 border-line';
+      default: return 'bg-mist-100 text-ink-500 border-line';
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity?.toLowerCase()) {
-      case 'critical': return 'bg-red-500 text-white';
-      case 'high': return 'bg-orange-500 text-white';
-      case 'medium': return 'bg-yellow-500 text-white';
-      case 'low': return 'bg-green-500 text-white';
-      case 'info': return 'bg-blue-500 text-white';
-      default: return 'bg-gray-500 text-white';
+      case 'critical': return 'bg-ink-950 text-white';
+      case 'high': return 'bg-ink-950 text-white';
+      case 'medium': return 'bg-mist-200 text-ink-950';
+      case 'low': return 'bg-white text-ink-900 border border-line';
+      case 'info': return 'bg-mist-100 text-ink-900';
+      default: return 'bg-mist-100 text-ink-500';
     }
   };
 
@@ -159,11 +169,11 @@ export default function VendorAuditDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
+      <div className="min-h-screen bg-mist-50 py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading audit details...</p>
+          <div className="tatva-card p-8 text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-line border-t-ink-950 rounded-full mx-auto mb-4"></div>
+            <p className="font-bold text-ink-500">Loading audit details...</p>
           </div>
         </div>
       </div>
@@ -171,29 +181,30 @@ export default function VendorAuditDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-mist-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header with Back Button */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="tatva-card p-6 mb-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center space-x-4 min-w-0">
               <button
                 onClick={() => navigate(`/vendor/configuration/${audit?.configuration.config_id}`)}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-bold text-ink-500 hover:text-ink-950 hover:bg-mist-100 rounded-xl transition-colors shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Configuration</span>
               </button>
-              <div className="w-px h-6 bg-gray-300"></div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Security Audit Report</h1>
-                <p className="text-gray-600">{audit?.configuration.filename || 'Loading...'}</p>
+              <div className="w-px h-6 bg-line"></div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold tracking-[0.28em] text-ink-500">SECURITY AUDIT REPORT</div>
+                <h1 className="text-3xl font-bold tracking-tight text-ink-900 truncate">Security Audit Report</h1>
+                <p className="font-semibold text-ink-500">{audit?.configuration.filename || 'Loading...'}</p>
               </div>
             </div>
             <button
               onClick={downloadReport}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="btn-ink flex items-center space-x-2 px-8 py-3.5 rounded-xl text-sm shrink-0"
             >
               <Download className="w-4 h-4" />
               <span>Download PDF</span>
@@ -203,7 +214,7 @@ export default function VendorAuditDetails() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="bg-ink-950 text-white px-4 py-3 rounded-xl mb-6 font-bold text-sm">
             {error}
           </div>
         )}
@@ -211,85 +222,85 @@ export default function VendorAuditDetails() {
         {audit && (
           <>
             {/* Audit Summary */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                
+            <div className="tatva-card p-6 sm:p-8 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+
                 {/* Compliance Score */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <div className="bg-ink-950 text-white rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-700">Compliance Score</span>
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    <span className="text-[11px] font-bold tracking-[0.2em] text-white/60">COMPLIANCE SCORE</span>
+                    <BarChart3 className="w-5 h-5" />
                   </div>
-                  <div className="text-3xl font-bold text-blue-900 mb-2">{audit.compliance_score}%</div>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                  <div className="text-4xl font-bold mb-2">{audit.compliance_score}%</div>
+                  <div className="w-full bg-white/20 rounded-full h-2.5">
+                    <div
+                      className="bg-white h-2.5 rounded-full transition-all duration-500"
                       style={{ width: `${audit.compliance_score}%` }}
                     ></div>
                   </div>
                 </div>
 
                 {/* Risk Level */}
-                <div className={`rounded-lg p-4 border ${getRiskLevelColor(audit.risk_level)}`}>
+                <div className={`rounded-2xl p-5 border-2 font-bold ${getRiskLevelColor(audit.risk_level)}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Risk Level</span>
+                    <span className="text-[11px] font-bold tracking-[0.2em]">RISK LEVEL</span>
                     <Shield className="w-5 h-5" />
                   </div>
-                  <div className="text-2xl font-bold mb-1">{audit.risk_level}</div>
-                  <div className="text-sm opacity-75">Score: {audit.risk_score}/100</div>
+                  <div className="text-3xl font-bold mb-1">{audit.risk_level}</div>
+                  <div className="text-sm font-semibold opacity-75">Score: {audit.risk_score}/100</div>
                 </div>
 
                 {/* Test Results */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Test Results</span>
-                    <TrendingUp className="w-5 h-5 text-gray-600" />
+                <div className="bg-mist-50 border border-line rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold tracking-[0.2em] text-ink-500">TEST RESULTS</span>
+                    <TrendingUp className="w-5 h-5 text-ink-950" />
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-700">Passed:</span>
-                      <span className="font-bold text-green-900">{audit.passed_count}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-bold">
+                      <span className="text-ink-500">Passed</span>
+                      <span className="text-ink-950 text-lg">{audit.passed_count}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-red-700">Failed:</span>
-                      <span className="font-bold text-red-900">{audit.failed_count}</span>
+                    <div className="flex justify-between text-sm font-bold">
+                      <span className="text-ink-500">Failed</span>
+                      <span className="text-ink-950 text-lg">{audit.failed_count}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-yellow-700">Warnings:</span>
-                      <span className="font-bold text-yellow-900">{audit.warning_count}</span>
+                    <div className="flex justify-between text-sm font-bold">
+                      <span className="text-ink-500">Warnings</span>
+                      <span className="text-ink-950 text-lg">{audit.warning_count}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Audit Info */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                <div className="bg-white border border-line rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-purple-700">Audit Status</span>
-                    <Clock className="w-5 h-5 text-purple-600" />
+                    <span className="text-[11px] font-bold tracking-[0.2em] text-ink-500">AUDIT STATUS</span>
+                    <Clock className="w-5 h-5 text-ink-950" />
                   </div>
-                  <div className="text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        audit.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  <div className="text-sm space-y-1 font-bold">
+                    <div className="flex justify-between items-center">
+                      <span className="text-ink-500">Status</span>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        audit.status === 'COMPLETED' ? 'bg-ink-950 text-white' : 'bg-mist-100 text-ink-500'
                       }`}>
                         {audit.status}
                       </span>
                     </div>
-                    <div className="text-xs text-purple-700 mt-2">
+                    <div className="text-xs font-semibold text-ink-500 mt-2">
                       {audit.completed_at ? `Completed: ${new Date(audit.completed_at).toLocaleString()}` : 'In Progress'}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Human Review Alert */}
+              {/* Human Review Alert — prominent */}
               {audit.requires_human_review && (
-                <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="mt-6 bg-ink-950 text-white rounded-2xl p-6">
                   <div className="flex items-start space-x-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <span className="w-9 h-9 rounded-xl bg-white text-ink-950 flex items-center justify-center font-bold shrink-0">!</span>
                     <div>
-                      <div className="font-medium text-amber-900">Human Review Required</div>
+                      <div className="font-bold text-lg tracking-tight">Human Evaluation Required</div>
                       <div className="text-sm text-amber-700 mt-1">
                         {audit.review_reason || 'This configuration requires manual review by security experts.'}
                       </div>
@@ -453,7 +464,7 @@ export default function VendorAuditDetails() {
                                 </div>
                               </div>
                               <div className="text-xs text-gray-400">
-                                Confidence: {(finding.confidence_score * 100).toFixed(0)}%
+                                Confidence: {(((finding as any).confidence_score ?? 0.95) * 100).toFixed(0)}%
                               </div>
                             </div>
 

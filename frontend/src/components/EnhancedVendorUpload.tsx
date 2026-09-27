@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, AlertCircle, CheckCircle, X, Play, Pause } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, X, Play, Pause, ArrowRight, Check } from 'lucide-react';
 
 interface UploadFile {
   file: File;
@@ -11,10 +12,16 @@ interface UploadFile {
   result?: any;
 }
 
-const EnhancedVendorUpload: React.FC = () => {
+interface EnhancedVendorUploadProps {
+  onUploadComplete?: () => void;
+}
+
+const EnhancedVendorUpload: React.FC<EnhancedVendorUploadProps> = ({ onUploadComplete }) => {
+  const navigate = useNavigate();
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'single' | 'bulk'>('single');
+  const [redirectNotice, setRedirectNotice] = useState<string | null>(null);
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -41,6 +48,7 @@ const EnhancedVendorUpload: React.FC = () => {
 
   const handleUpload = async () => {
     setIsUploading(true);
+    setRedirectNotice(null);
     
     try {
       if (uploadType === 'single') {
@@ -50,6 +58,15 @@ const EnhancedVendorUpload: React.FC = () => {
       } else {
         await uploadBulkFiles(files);
       }
+      
+      setRedirectNotice('Configuration uploaded successfully! Redirecting to Configurations...');
+      setTimeout(() => {
+        if (onUploadComplete) {
+          onUploadComplete();
+        } else {
+          navigate('/vendor/configurations');
+        }
+      }, 1200);
     } catch (error) {
       console.error('Upload error:', error);
     } finally {
@@ -71,7 +88,7 @@ const EnhancedVendorUpload: React.FC = () => {
       const response = await fetch('/api/vendor/enhanced-upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'X-Vendor-Session-Token': `${localStorage.getItem('vendor_session_token') || ''}`
         },
         body: formData
       });
@@ -111,7 +128,7 @@ const EnhancedVendorUpload: React.FC = () => {
       const response = await fetch('/api/vendor/enhanced-bulk-upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'X-Vendor-Session-Token': `${localStorage.getItem('vendor_session_token') || ''}`
         },
         body: formData
       });
@@ -136,27 +153,37 @@ const EnhancedVendorUpload: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {redirectNotice && (
+        <div className="bg-ink-950 text-white px-5 py-4 rounded-2xl shadow-sm flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-bold text-sm">{redirectNotice}</span>
+          </div>
+          <ArrowRight className="w-5 h-5 animate-pulse" />
+        </div>
+      )}
       {/* Upload Type Selection */}
-      <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-lg font-semibold mb-4">Upload Configuration Files</h3>
-        
-        <div className="flex space-x-4 mb-6">
+      <div className="tatva-card p-7">
+        <div className="text-xs font-bold tracking-[0.24em] text-ink-500">UPLOAD MODE</div>
+        <h3 className="text-2xl font-bold tracking-tight text-ink-900 mt-1">Upload Configuration Files</h3>
+
+        <div className="flex gap-3 mt-5 mb-6">
           <button
             onClick={() => setUploadType('single')}
-            className={`px-4 py-2 rounded-md ${
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold ${
               uploadType === 'single'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-ink-950 text-white'
+                : 'bg-mist-100 text-ink-500 hover:text-ink-950'
             }`}
           >
             Single File Upload
           </button>
           <button
             onClick={() => setUploadType('bulk')}
-            className={`px-4 py-2 rounded-md ${
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold ${
               uploadType === 'bulk'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-ink-950 text-white'
+                : 'bg-mist-100 text-ink-500 hover:text-ink-950'
             }`}
           >
             Bulk Upload
@@ -166,22 +193,22 @@ const EnhancedVendorUpload: React.FC = () => {
         {/* Drop Zone */}
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors ${
             isDragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-ink-950 bg-mist-100'
+              : 'border-line hover:border-ink-950'
           }`}
         >
           <input {...getInputProps()} />
-          <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <Upload className="mx-auto h-12 w-12 text-ink-950 mb-4" />
           {isDragActive ? (
-            <p className="text-blue-600 font-medium">Drop files here...</p>
+            <p className="text-ink-950 font-bold">Drop files here...</p>
           ) : (
             <div>
-              <p className="text-gray-600 mb-2">
+              <p className="font-bold text-ink-900 mb-2 text-lg">
                 Drag and drop configuration files here, or click to browse
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm font-semibold text-ink-500">
                 Supports: .txt, .cfg, .conf, .json, .xml, .yaml, .yml (max 10MB)
               </p>
             </div>
@@ -190,15 +217,15 @@ const EnhancedVendorUpload: React.FC = () => {
       </div>
       {/* File List */}
       {files.length > 0 && (
-        <div className="bg-white rounded-lg border">
-          <div className="p-4 border-b bg-gray-50">
+        <div className="tatva-card">
+          <div className="p-5 border-b border-line bg-mist-50 rounded-t-2xl">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium">
+              <h4 className="font-bold text-ink-900">
                 Selected Files ({files.length})
               </h4>
               <button
                 onClick={() => setFiles([])}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-ink-500 hover:text-ink-950 font-bold text-sm"
                 disabled={isUploading}
               >
                 <X className="h-4 w-4" />
@@ -223,23 +250,23 @@ const EnhancedVendorUpload: React.FC = () => {
 
       {/* Upload Controls */}
       {files.length > 0 && (
-        <div className="bg-white rounded-lg border p-6">
-          <div className="flex items-center justify-between">
+        <div className="tatva-card p-6">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm font-bold text-ink-900 mb-1">
                 Ready to upload {files.length} file(s)
               </p>
               {uploadType === 'bulk' && files.length > 5 && (
-                <p className="text-sm text-amber-600">
-                  ⚠️ Bulk upload with 5+ files will generate an overall configuration
+                <p className="text-sm font-bold text-ink-900">
+                  Bulk upload with 5+ files will generate an overall configuration
                 </p>
               )}
             </div>
-            
+
             <button
               onClick={handleUpload}
               disabled={isUploading || files.length === 0}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="btn-ink px-8 py-3.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isUploading ? (
                 <>
@@ -270,52 +297,52 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({ fileItem, onRemove, dis
   const getStatusIcon = () => {
     switch (fileItem.status) {
       case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-ink-950" />;
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-ink-950" />;
       case 'uploading':
       case 'processing':
-        return <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+        return <div className="h-5 w-5 border-2 border-ink-950 border-t-transparent rounded-full animate-spin" />;
       default:
-        return <FileText className="h-5 w-5 text-gray-400" />;
+        return <FileText className="h-5 w-5 text-ink-500" />;
     }
   };
 
   const getStatusColor = () => {
     switch (fileItem.status) {
       case 'completed':
-        return 'text-green-600';
+        return 'text-ink-950';
       case 'error':
-        return 'text-red-600';
+        return 'text-ink-950';
       case 'uploading':
       case 'processing':
-        return 'text-blue-600';
+        return 'text-ink-900';
       default:
-        return 'text-gray-600';
+        return 'text-ink-500';
     }
   };
 
   return (
-    <div className="p-4">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-3">
           {getStatusIcon()}
           <div>
-            <p className="font-medium text-gray-900">{fileItem.file.name}</p>
-            <p className="text-sm text-gray-500">
+            <p className="font-bold text-ink-900">{fileItem.file.name}</p>
+            <p className="text-sm font-semibold text-ink-500">
               {(fileItem.file.size / 1024).toFixed(1)} KB
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-4">
-          <span className={`text-sm font-medium ${getStatusColor()}`}>
+          <span className={`text-sm font-bold ${getStatusColor()}`}>
             {fileItem.status.charAt(0).toUpperCase() + fileItem.status.slice(1)}
           </span>
           {!disabled && fileItem.status === 'pending' && (
             <button
               onClick={onRemove}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-ink-500 hover:text-ink-950"
             >
               <X className="h-4 w-4" />
             </button>
@@ -325,9 +352,9 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({ fileItem, onRemove, dis
 
       {/* Progress Bar */}
       {fileItem.status === 'uploading' || fileItem.status === 'processing' ? (
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-mist-200 rounded-full h-2">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className="bg-ink-950 h-2 rounded-full transition-all duration-300"
             style={{ width: `${fileItem.progress}%` }}
           />
         </div>
@@ -335,20 +362,20 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({ fileItem, onRemove, dis
 
       {/* Error Message */}
       {fileItem.error && (
-        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-700">{fileItem.error}</p>
+        <div className="mt-2 p-3 bg-mist-100 border border-ink-950 rounded-xl">
+          <p className="text-sm font-bold text-ink-950">{fileItem.error}</p>
         </div>
       )}
 
       {/* Success Result */}
       {fileItem.result && fileItem.status === 'completed' && (
-        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-sm text-green-700">
-            ✅ Upload successful - Configuration created: {fileItem.result.configuration_id}
+        <div className="mt-2 p-3 bg-ink-950 text-white rounded-xl">
+          <p className="text-sm font-bold">
+            Upload successful — Configuration created: {fileItem.result.configuration_id}
           </p>
           {fileItem.result.audit_id && (
-            <p className="text-sm text-green-600 mt-1">
-              🔍 Security audit initiated: {fileItem.result.audit_id}
+            <p className="text-sm font-semibold text-white/70 mt-1">
+              Security audit initiated: {fileItem.result.audit_id}
             </p>
           )}
         </div>

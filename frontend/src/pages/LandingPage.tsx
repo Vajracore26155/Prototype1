@@ -1,265 +1,186 @@
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, Lock, ArrowRight, CheckCircle, Zap, BarChart3, Mail } from 'lucide-react';
+import { Users, Lock, ArrowRight, CheckCircle, Zap, BarChart3, Mail, UserPlus, Shield } from 'lucide-react';
+import VajraMark from '../components/VajraMark';
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Navigation Bar */}
-      <nav className="bg-white/40 backdrop-blur-xl border-b border-white/30 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-mist-50 text-ink-900">
+      {/* Top bar */}
+      <nav className="bg-white/85 backdrop-blur border-b border-line sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
+            <VajraMark className="w-9 h-9" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Tatva</h1>
-              <p className="text-xs text-gray-600 font-medium">Network Security Compliance Auditor</p>
+              <div className="text-lg font-bold tracking-tight text-ink-900 leading-none">TATVA</div>
+              <div className="text-[11px] font-bold tracking-[0.22em] text-ink-500">VAJRACORES</div>
             </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-3">
+            <button onClick={() => navigate('/vendor/login')} className="text-sm font-bold text-ink-900 hover:underline">Vendor Login</button>
+            <button onClick={() => navigate('/login')} className="btn-ink text-sm px-5 py-2.5 rounded-xl">Admin Login</button>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-20">
-          <h2 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Welcome to <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Tatva</span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-            Secure Network Security Compliance Platform for Device Configuration Auditing
-          </p>
-          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-green-100/50 border border-green-300 rounded-lg">
-            <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-green-800">System Active</span>
+      {/* HERO — reference Image 1 + background Image 2 */}
+      <header className="tatva-hero-bg relative overflow-hidden border-b border-line">
+        <div className="tatva-grid absolute inset-0" aria-hidden="true" />
+        {/* cyber shield glow, right side */}
+        <svg viewBox="0 0 520 520" className="absolute -right-24 top-1/2 -translate-y-1/2 w-[560px] h-[560px] opacity-70 pointer-events-none" aria-hidden="true">
+          <defs>
+            <radialGradient id="tatvaGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#7FB6EC" stopOpacity="0.55" />
+              <stop offset="55%" stopColor="#7FB6EC" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#7FB6EC" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="260" cy="260" r="240" fill="url(#tatvaGlow)" />
+          <circle cx="260" cy="260" r="150" fill="none" stroke="#2F6DB3" strokeOpacity="0.35" strokeWidth="1.5" />
+          <circle cx="260" cy="260" r="118" fill="none" stroke="#2F6DB3" strokeOpacity="0.5" strokeWidth="1.5" />
+          <circle cx="260" cy="260" r="88" fill="#FFFFFF" stroke="#2F6DB3" strokeOpacity="0.55" strokeWidth="2" />
+          <path d="M260 210 L296 224 V258 C296 284 280 302 260 312 C240 302 224 284 224 258 V224 Z" fill="#E7F1FB" stroke="#1F4E86" strokeWidth="3" />
+          <rect x="250" y="252" width="20" height="16" rx="2" fill="#1F4E86" />
+          <path d="M253 252 v-5 a7 7 0 0 1 14 0 v5" fill="none" stroke="#1F4E86" strokeWidth="3" />
+        </svg>
+
+        <div className="relative max-w-7xl mx-auto px-6 pt-14 pb-16 text-center">
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <VajraMark className="w-5 h-5" />
+            <span className="tatva-eyebrow">VAJRACORES</span>
+          </div>
+          <div className="inline-block tatva-box px-10 sm:px-16 py-5 sm:py-7">
+            <h1 className="tatva-display text-7xl sm:text-8xl md:text-9xl">TATVA</h1>
+          </div>
+          <p className="tatva-tagline mt-6">WHERE NETWORKS MEET SECURITY</p>
+          <p className="mt-4 text-sm font-bold text-ink-500 tracking-wide">Team Vajracore &bull; SIH 2026 &bull; AI-Driven Multi-Vendor Compliance Auditor</p>
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+            <button onClick={() => navigate('/vendor/register')} className="btn-ink px-8 py-3.5 rounded-xl text-sm">Start as Vendor <ArrowRight className="inline w-4 h-4 ml-1" /></button>
+            <button onClick={() => navigate('/login')} className="btn-paper px-8 py-3.5 rounded-xl text-sm">Admin Login</button>
+          </div>
+          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-white border border-line rounded-full">
+            <span className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
+            <span className="text-xs font-bold text-ink-900">System Active</span>
           </div>
         </div>
+      </header>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
-          {/* Vendor Section - PRIMARY */}
-          <div className="order-1 lg:order-1">
-            <div className="bg-white/60 backdrop-blur-xl border-2 border-indigo-200 rounded-2xl p-10 shadow-xl hover:shadow-2xl transition-all">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-3 bg-indigo-100 rounded-xl">
-                  <Users className="w-6 h-6 text-indigo-600" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900">Vendor Portal</h3>
-              </div>
-
-              <p className="text-gray-600 mb-8">
-                Device vendors can securely register and upload network device configurations for security compliance auditing.
-              </p>
-
-              <div className="space-y-3 mb-8">
-                <button
-                  onClick={() => navigate('/vendor/register')}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:shadow-lg transition-all group"
-                >
-                  <span className="font-semibold">Vendor Registration</span>
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                <button
-                  onClick={() => navigate('/vendor/login')}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-indigo-50 border-2 border-indigo-200 text-indigo-900 rounded-xl hover:bg-indigo-100 transition-all group"
-                >
-                  <span className="font-semibold">Vendor Login</span>
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-2">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-indigo-900">
-                    <strong>Secure Registration</strong> - Complete vendor information and await approval
-                  </span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-indigo-900">
-                    <strong>Flexible Authentication</strong> - Login with OTP or credentials
-                  </span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-indigo-900">
-                    <strong>File Upload</strong> - Upload device configurations for audit
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* PORTALS — same routes, premium cards */}
+      <main className="max-w-7xl mx-auto px-6 py-16">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <div className="text-xs font-bold tracking-[0.28em] text-ink-500">ACCESS PORTALS</div>
+            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-ink-900 mt-2">Choose your workspace</h2>
           </div>
-
-          {/* Admin Section - SECONDARY */}
-          <div className="order-2 lg:order-2">
-            <div className="bg-white/40 backdrop-blur-xl border-2 border-gray-200 rounded-2xl p-10 shadow-lg hover:shadow-xl transition-all">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-3 bg-gray-100 rounded-xl">
-                  <Lock className="w-6 h-6 text-gray-700" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900">Admin Portal</h3>
-              </div>
-
-              <p className="text-gray-600 mb-8">
-                System administrators manage vendor access, approve registrations, and monitor compliance across the platform.
-              </p>
-
-              <button
-                onClick={() => navigate('/login')}
-                className="w-full flex items-center justify-between px-6 py-4 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-all group mb-6"
-              >
-                <span className="font-semibold">Admin Login</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-gray-700 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-gray-900">
-                    <strong>Vendor Approvals</strong> - Review and approve vendor registrations
-                  </span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-gray-700 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-gray-900">
-                    <strong>Activity Monitoring</strong> - Track vendor uploads and sessions
-                  </span>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-5 h-5 text-gray-700 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-gray-900">
-                    <strong>Access Management</strong> - Control vendor account status
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-xs text-yellow-900">
-                  <strong>Note:</strong> Only authorized system administrators can access this portal. Use your admin credentials to login.
-                </p>
-              </div>
-            </div>
-          </div>
+          <div className="hidden md:block text-sm font-semibold text-ink-500">Black &bull; White &bull; Gray</div>
         </div>
 
-        {/* Features Section */}
-        <div className="mb-20">
-          <h3 className="text-3xl font-bold text-gray-900 text-center mb-12">System Features</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <PortalCard
+            eyebrow="VENDORS"
+            title="Vendor Login"
+            desc="OTP or email + password. Upload configs, track audits, download designer PDF reports."
+            points={['OTP + password login', 'Upload & auto-audit', 'Findings with evidence']}
+            cta="Open Vendor Login"
+            dark
+            onClick={() => navigate('/vendor/login')}
+            icon={<Users className="w-6 h-6" />}
+          />
+          <PortalCard
+            eyebrow="VENDORS"
+            title="Vendor Registration"
+            desc="Register your company once. Admin approves, then first OTP login sets your username + password."
+            points={['Company + contact profile', 'Admin approval workflow', 'Set credentials on first login']}
+            cta="Register as Vendor"
+            onClick={() => navigate('/vendor/register')}
+            icon={<UserPlus className="w-6 h-6" />}
+          />
+          <PortalCard
+            eyebrow="ADMINISTRATORS"
+            title="Admin Login"
+            desc="Single authorized admin. Approve vendors, monitor sessions, review audits and platform compliance."
+            points={['Vendor approvals', 'Sessions & activity', 'Platform oversight']}
+            cta="Open Admin Login"
+            dark
+            onClick={() => navigate('/login')}
+            icon={<Lock className="w-6 h-6" />}
+          />
+        </div>
+
+        {/* Features */}
+        <div className="mt-20">
+          <h3 className="text-3xl sm:text-4xl font-bold tracking-tight text-ink-900 text-center">Engineered like a product, not a prototype</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
             {[
-              {
-                icon: Zap,
-                title: "Fast Registration",
-                description: "Complete vendor registration in minutes with secure approval workflow"
-              },
-              {
-                icon: Lock,
-                title: "Secure Authentication",
-                description: "OTP-based and username/password authentication options"
-              },
-              {
-                icon: BarChart3,
-                title: "Compliance Auditing",
-                description: "Comprehensive security compliance auditing for network devices"
-              },
-              {
-                icon: Mail,
-                title: "Email Notifications",
-                description: "Real-time notifications for registrations, approvals, and OTP codes"
-              },
-              {
-                icon: Users,
-                title: "Vendor Management",
-                description: "Complete vendor lifecycle management with role-based access"
-              },
-              {
-                icon: Shield,
-                title: "Enterprise Security",
-                description: "Organization isolation and comprehensive audit logging"
-              }
-            ].map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <div key={idx} className="bg-white/50 backdrop-blur-sm border border-white/50 rounded-xl p-6 hover:bg-white/70 transition-all">
-                  <div className="p-3 bg-indigo-100 rounded-lg w-fit mb-4">
-                    <Icon className="w-6 h-6 text-indigo-600" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h4>
-                  <p className="text-gray-600 text-sm">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* How It Works */}
-        <div className="bg-white/60 backdrop-blur-xl border border-white/50 rounded-2xl p-10 mb-20">
-          <h3 className="text-3xl font-bold text-gray-900 text-center mb-12">How It Works</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              {
-                step: "1",
-                title: "Register",
-                description: "Vendor submits registration with company details"
-              },
-              {
-                step: "2",
-                title: "Approval",
-                description: "Admin reviews and approves vendor request"
-              },
-              {
-                step: "3",
-                title: "Login",
-                description: "Vendor logs in with OTP or credentials"
-              },
-              {
-                step: "4",
-                title: "Audit",
-                description: "Upload configs for security compliance audit"
-              }
-            ].map((item, idx) => (
-              <div key={idx} className="text-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white font-bold text-lg">{item.step}</span>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">{item.title}</h4>
-                <p className="text-sm text-gray-600">{item.description}</p>
-                {idx < 3 && <div className="hidden md:block absolute left-1/2 top-1/3 w-6 h-0.5 bg-indigo-300 -translate-x-1/2"></div>}
+              { icon: Zap, title: 'Vendor lifecycle, complete', desc: 'Registration, approval, OTP, username + password, profile, sessions — one continuous flow.' },
+              { icon: BarChart3, title: 'Real-time analytics', desc: 'Live compliance, risk distribution and domain breakdowns computed per vendor.' },
+              { icon: Shield, title: 'Evidence-grade audits', desc: 'Findings carry rule, severity, evidence line, remediation and framework mapping.' },
+              { icon: Mail, title: 'Operational email', desc: 'OTP, approval and notification flows backed by the email service.' },
+              { icon: Users, title: 'Isolated multi-tenancy', desc: 'Vendors only ever see their own configurations and audits.' },
+              { icon: CheckCircle, title: 'Designer reports', desc: 'Confidential-styled PDFs with cover, executive summary and appendices.' },
+            ].map((f, i) => (
+              <div key={i} className="tatva-card p-7">
+                <div className="w-11 h-11 rounded-xl bg-ink-950 text-white flex items-center justify-center mb-5"><f.icon className="w-5 h-5" /></div>
+                <h4 className="text-lg font-bold text-ink-900">{f.title}</h4>
+                <p className="text-sm font-medium text-ink-500 mt-2 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Footer CTA */}
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">Ready to Get Started?</h3>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button
-              onClick={() => navigate('/vendor/register')}
-              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-            >
-              Register as Vendor
-            </button>
-            <button
-              onClick={() => navigate('/login')}
-              className="px-8 py-3 bg-gray-900 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-            >
-              Admin Login
-            </button>
+        {/* How it works */}
+        <div className="tatva-card p-10 mt-16">
+          <h3 className="text-3xl font-bold tracking-tight text-ink-900 text-center">How it works</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-10">
+            {[
+              { n: '01', t: 'Register', d: 'Vendor submits company details.' },
+              { n: '02', t: 'Approve', d: 'Admin reviews and approves.' },
+              { n: '03', t: 'Login', d: 'OTP first, then OTP or password.' },
+              { n: '04', t: 'Audit', d: 'Upload configs, get findings + PDF.' },
+            ].map((s) => (
+              <div key={s.n} className="text-center">
+                <div className="text-5xl font-bold tracking-tight text-ink-900">{s.n}</div>
+                <div className="mt-2 text-base font-bold text-ink-900">{s.t}</div>
+                <div className="mt-1 text-sm font-medium text-ink-500">{s.d}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Footer */}
-      <div className="border-t border-white/30 bg-white/20 backdrop-blur-xl mt-20 py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center text-gray-600 text-sm">
-          <p>© 2026 Tatva - AI-Driven Multi-Vendor Network Security Compliance Auditor</p>
-          <p className="mt-2">Enterprise Security | Vendor Management | Compliance Auditing</p>
+      <footer className="border-t border-line bg-white mt-4">
+        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <VajraMark className="w-6 h-6" />
+            <span className="text-sm font-bold text-ink-900">TATVA by Team Vajracore</span>
+          </div>
+          <div className="text-xs font-semibold text-ink-500">Enterprise Security | Vendor Management | Compliance Auditing</div>
         </div>
-      </div>
+      </footer>
+    </div>
+  );
+}
+
+function PortalCard({ eyebrow, title, desc, points, cta, dark, onClick, icon }: {
+  eyebrow: string; title: string; desc: string; points: string[]; cta: string; dark?: boolean; onClick: () => void; icon: React.ReactNode;
+}) {
+  return (
+    <div className={`tatva-card p-8 flex flex-col ${dark ? '!bg-ink-950 !border-ink-950 text-white' : ''}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 ${dark ? 'bg-white text-ink-950' : 'bg-ink-950 text-white'}`}>{icon}</div>
+      <div className={`text-[11px] font-bold tracking-[0.28em] ${dark ? 'text-white/60' : 'text-ink-500'}`}>{eyebrow}</div>
+      <h3 className={`text-2xl font-bold tracking-tight mt-2 ${dark ? 'text-white' : 'text-ink-900'}`}>{title}</h3>
+      <p className={`text-sm font-medium mt-3 leading-relaxed ${dark ? 'text-white/70' : 'text-ink-500'}`}>{desc}</p>
+      <ul className="mt-5 space-y-2">
+        {points.map((p) => (
+          <li key={p} className={`flex items-start gap-2 text-sm font-semibold ${dark ? 'text-white/85' : 'text-ink-900'}`}>
+            <CheckCircle className={`w-4 h-4 mt-0.5 ${dark ? 'text-white' : 'text-ink-900'}`} /><span>{p}</span>
+          </li>
+        ))}
+      </ul>
+      <button onClick={onClick} className={`mt-7 w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-sm ${dark ? 'bg-white text-ink-950 hover:bg-mist-100' : 'btn-ink rounded-xl'}`}>
+        <span>{cta}</span><ArrowRight className="w-4 h-4" />
+      </button>
     </div>
   );
 }

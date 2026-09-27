@@ -313,12 +313,12 @@ async def get_vendor_risk_distribution(
                 severity_counts[severity] = 0
             severity_counts[severity] += 1
         
-        # Format risk analysis
+        # Format risk analysis — grayscale only
         colors = {
-            "CRITICAL": "#DC2626",
-            "HIGH": "#F97316", 
-            "MEDIUM": "#EAB308",
-            "LOW": "#22C55E"
+            "CRITICAL": "#1C1C1C",
+            "HIGH": "#555555",
+            "MEDIUM": "#9A9A9A",
+            "LOW": "#D8D8D8"
         }
         
         risk_analysis = []
@@ -381,17 +381,19 @@ async def get_vendor_finding_categories(
         categories = {}
         
         for finding in findings:
-            # Basic categorization based on rule_id pattern
+            # Real categorization based on rule_id pattern (NET-xxx are network-device controls)
             category = "Other"
-            if "SSH" in finding.rule_id or "TELNET" in finding.rule_id:
+            rid = (finding.rule_id or "").upper()
+            title = (finding.title or "").upper()
+            if rid.startswith("NET-") or "SSH" in rid or "TELNET" in rid or "SSH" in title:
                 category = "Network Security"
-            elif "AUTH" in finding.rule_id or "USER" in finding.rule_id:
+            elif "AUTH" in rid or "USER" in rid or "ACCESS" in rid:
                 category = "Access Control"
-            elif "ENCRYPT" in finding.rule_id or "CRYPTO" in finding.rule_id:
+            elif "ENCRYPT" in rid or "CRYPTO" in rid:
                 category = "Data Protection"
-            elif "LOG" in finding.rule_id or "AUDIT" in finding.rule_id:
+            elif "LOG" in rid or "AUDIT" in rid:
                 category = "Logging & Monitoring"
-            elif "PASS" in finding.rule_id or "PWD" in finding.rule_id:
+            elif "PASS" in rid or "PWD" in rid:
                 category = "Authentication"
             
             if category not in categories:

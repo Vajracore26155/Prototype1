@@ -70,69 +70,77 @@ export default function VendorUploadEnhanced() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-mist-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-line">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left side */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/vendor/dashboard')}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-md"
+                title="Back to Dashboard"
+                className="p-2 text-ink-500 hover:text-ink-950 hover:bg-mist-100 rounded-xl"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              
+
               <div className="flex items-center space-x-3">
-                <Building2 className="h-8 w-8 text-indigo-600" />
+                <Building2 className="h-8 w-8 text-ink-950" />
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900">
+                  <h1 className="text-lg font-bold tracking-tight text-ink-900">
                     {sessionInfo?.vendor?.company || 'Loading...'}
                   </h1>
-                  <p className="text-sm text-gray-500">Enhanced Upload Portal</p>
+                  <p className="text-xs font-bold text-ink-500">Enhanced Upload Portal</p>
                 </div>
               </div>
             </div>
 
             {/* Right side */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {sessionInfo && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm font-bold text-ink-900 hidden sm:block">
                   {sessionInfo.vendor.contact}
                 </div>
               )}
-              
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                className="p-2 text-ink-500 hover:text-ink-950 border border-line rounded-xl hover:bg-mist-50"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+
               {/* Menu */}
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-md"
+                  className="p-2 text-ink-500 hover:text-ink-950 rounded-xl hover:bg-mist-50"
                 >
                   <Settings className="h-5 w-5" />
                 </button>
-                
+
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-line">
                     <div className="py-1">
                       <button
                         onClick={() => navigate('/vendor/dashboard')}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center w-full px-4 py-2 text-sm font-bold text-ink-900 hover:bg-mist-50"
                       >
                         <TrendingUp className="h-4 w-4 mr-3" />
                         Dashboard
                       </button>
                       <button
                         onClick={() => navigate('/vendor/settings')}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center w-full px-4 py-2 text-sm font-bold text-ink-900 hover:bg-mist-50"
                       >
                         <Settings className="h-4 w-4 mr-3" />
                         Settings
                       </button>
-                      <hr className="my-1" />
+                      <hr className="my-1 border-line" />
                       <button
                         onClick={handleLogout}
-                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="flex items-center w-full px-4 py-2 text-sm font-bold text-ink-950 hover:bg-mist-50"
                       >
                         <LogOut className="h-4 w-4 mr-3" />
                         Logout
@@ -147,33 +155,33 @@ export default function VendorUploadEnhanced() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="text-red-700">{error}</div>
+          <div className="mb-5 bg-ink-950 text-white rounded-xl p-4">
+            <div className="text-sm font-bold">{error}</div>
           </div>
         )}
 
         {/* Session Info Banner */}
         {sessionInfo && (
-          <div className="mb-6 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6">
-            <div className="flex items-center justify-between">
+          <div className="mb-5 bg-ink-950 text-white rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-indigo-900 mb-2">
+                <h2 className="text-lg font-bold tracking-tight mb-2">
                   Welcome, {sessionInfo.vendor.company}!
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-indigo-600 font-medium">Session ID:</span>
-                    <div className="text-indigo-800 font-mono">{sessionInfo.session_id}</div>
+                    <span className="text-white/60 text-[11px] font-bold uppercase tracking-wide">Session ID</span>
+                    <div className="text-white font-mono font-bold">{sessionInfo.session_id}</div>
                   </div>
                   <div>
-                    <span className="text-indigo-600 font-medium">Status:</span>
-                    <div className="text-indigo-800 capitalize">{sessionInfo.status}</div>
+                    <span className="text-white/60 text-[11px] font-bold uppercase tracking-wide">Status</span>
+                    <div className="text-white capitalize font-bold">{sessionInfo.status}</div>
                   </div>
                   <div>
-                    <span className="text-indigo-600 font-medium">Files Uploaded:</span>
-                    <div className="text-indigo-800 font-semibold">{sessionInfo.upload_count}</div>
+                    <span className="text-white/60 text-[11px] font-bold uppercase tracking-wide">Files Uploaded</span>
+                    <div className="font-bold">{sessionInfo.upload_count}</div>
                   </div>
                 </div>
               </div>
@@ -185,23 +193,23 @@ export default function VendorUploadEnhanced() {
         <EnhancedVendorUpload />
 
         {/* Usage Guidelines */}
-        <div className="mt-8 bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4">Upload Guidelines</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-5 tatva-card p-5">
+          <h3 className="text-base font-bold tracking-tight text-ink-900 mb-3">Upload Guidelines</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Supported File Types</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <h4 className="text-xs font-bold uppercase tracking-wide text-ink-500 mb-1.5">Supported File Types</h4>
+              <ul className="text-sm font-semibold text-ink-900 space-y-1">
                 <li>• Configuration files (.cfg, .conf, .txt)</li>
                 <li>• JSON configuration (.json)</li>
                 <li>• XML configuration (.xml)</li>
                 <li>• YAML configuration (.yaml, .yml)</li>
               </ul>
             </div>
-            
+
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">File Requirements</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <h4 className="text-xs font-bold uppercase tracking-wide text-ink-500 mb-1.5">File Requirements</h4>
+              <ul className="text-sm font-semibold text-ink-900 space-y-1">
                 <li>• Maximum file size: 10MB</li>
                 <li>• Files must be text-readable</li>
                 <li>• No executable files allowed</li>
@@ -209,10 +217,10 @@ export default function VendorUploadEnhanced() {
               </ul>
             </div>
           </div>
-          
-          <div className="mt-6 p-4 bg-blue-50 rounded-md">
-            <h4 className="font-medium text-blue-900 mb-2">Bulk Upload Behavior</h4>
-            <p className="text-sm text-blue-800">
+
+          <div className="mt-5 p-4 bg-mist-50 border border-line rounded-xl">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-ink-900 mb-1.5">Bulk Upload Behavior</h4>
+            <p className="text-sm font-semibold text-ink-500">
               • 1-4 files: Individual configurations created<br />
               • 5+ files: Overall configuration with aggregated analysis<br />
               • Each file is processed with AI-driven security analysis<br />

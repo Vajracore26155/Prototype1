@@ -72,7 +72,7 @@ export default function AdminVendors() {
       console.log(`Raw requests from API: ${requests.length}`);
       
       // Filter out any requests that might be stale or already processed
-      const actuallyPending = requests.filter(req => {
+      const actuallyPending = requests.filter((req: any) => {
         const isPending = req.status === 'PENDING' || !req.status || req.status === undefined;
         if (!isPending) {
           console.log(`Filtering out non-pending request: ${req.company_name} (${req.status})`);
@@ -117,7 +117,7 @@ export default function AdminVendors() {
       
       // Check if this request is actually still pending
       const currentRequests = await getVendorRequests('PENDING');
-      const targetRequest = currentRequests.data.requests?.find(req => req.request_id === requestId);
+      const targetRequest = currentRequests.data.requests?.find((req: any) => req.request_id === requestId);
       
       if (!targetRequest) {
         setError('This vendor request is no longer pending. Refreshing list...');
@@ -155,7 +155,7 @@ export default function AdminVendors() {
       
       // Check if this request is actually still pending
       const currentRequests = await getVendorRequests('PENDING');
-      const targetRequest = currentRequests.data.requests?.find(req => req.request_id === requestId);
+      const targetRequest = currentRequests.data.requests?.find((req: any) => req.request_id === requestId);
       
       if (!targetRequest) {
         setError('This vendor request is no longer pending. Refreshing list...');
@@ -215,28 +215,29 @@ export default function AdminVendors() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Management</h1>
-        <p className="text-gray-600">Manage vendor registrations, approvals, and activity</p>
+    <div className="py-1">
+      <div className="mb-5">
+        <div className="text-[11px] font-bold tracking-[0.28em] text-ink-500">VENDOR MANAGEMENT</div>
+        <h1 className="text-3xl font-bold tracking-tight text-ink-900 mt-1">Vendor Management</h1>
+        <p className="text-sm font-semibold text-ink-500 mt-1">Manage vendor registrations, approvals, and activity</p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-ink-950 text-white px-4 py-3 rounded-xl mb-5 font-bold text-sm">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-mist-100 border border-ink-950 text-ink-950 px-4 py-3 rounded-xl mb-5 font-bold text-sm">
           {success}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
+      <div className="tatva-card mb-5">
+        <div className="border-b border-line">
+          <nav className="flex -mb-px px-2">
             {[
               { id: 'requests', label: 'Pending Requests', count: pendingRequests.length },
               { id: 'vendors', label: 'All Vendors', count: vendors.length },
@@ -246,15 +247,15 @@ export default function AdminVendors() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-5 py-3.5 text-sm font-bold border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-ink-950 text-ink-950'
+                    : 'border-transparent text-ink-500 hover:text-ink-950'
                 }`}
               >
                 {tab.label}
                 {tab.count !== null && (
-                  <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
+                  <span className="ml-2 px-2 py-0.5 bg-mist-100 border border-line text-ink-900 rounded-full text-[11px]">
                     {tab.count}
                   </span>
                 )}
@@ -265,11 +266,11 @@ export default function AdminVendors() {
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="tatva-card p-5">
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="text-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-line border-t-ink-950"></div>
+            <p className="mt-4 text-sm font-bold text-ink-500">Loading...</p>
           </div>
         ) : (
           <>
@@ -277,10 +278,10 @@ export default function AdminVendors() {
             {activeTab === 'requests' && (
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Pending Vendor Requests</h2>
+                  <h2 className="text-lg font-bold tracking-tight text-ink-900">Pending Vendor Requests</h2>
                   <button
                     onClick={() => loadPendingRequests(true)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                    className="btn-ink px-4 py-2 rounded-xl flex items-center gap-2 text-sm"
                     disabled={loading}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,38 +291,38 @@ export default function AdminVendors() {
                   </button>
                 </div>
                 {pendingRequests.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center py-10">
+                    <svg className="w-14 h-14 mx-auto mb-4 text-line" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p>No pending vendor requests</p>
+                    <p className="text-sm font-bold text-ink-500">No pending vendor requests</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {pendingRequests.map((request) => (
-                      <div key={request.request_id} className="border border-gray-200 rounded-lg p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{request.company_name}</h3>
-                            <div className="mt-2 space-y-1 text-sm text-gray-600">
-                              <p><strong>Contact:</strong> {request.contact_name}</p>
-                              <p><strong>Email:</strong> {request.vendor_email}</p>
-                              {request.phone && <p><strong>Phone:</strong> {request.phone}</p>}
-                              <p><strong>Request ID:</strong> {request.request_id}</p>
-                              <p><strong>Vendor ID:</strong> {request.vendor_id}</p>
-                              <p><strong>Requested:</strong> {formatDate(request.requested_at)}</p>
+                      <div key={request.request_id} className="border border-line rounded-2xl p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-bold text-ink-900">{request.company_name}</h3>
+                            <div className="mt-2 space-y-1 text-xs font-semibold text-ink-500">
+                              <p><strong className="text-ink-900">Contact:</strong> {request.contact_name}</p>
+                              <p><strong className="text-ink-900">Email:</strong> {request.vendor_email}</p>
+                              {request.phone && <p><strong className="text-ink-900">Phone:</strong> {request.phone}</p>}
+                              <p><strong className="text-ink-900">Request ID:</strong> {request.request_id}</p>
+                              <p><strong className="text-ink-900">Vendor ID:</strong> {request.vendor_id}</p>
+                              <p><strong className="text-ink-900">Requested:</strong> {formatDate(request.requested_at)}</p>
                             </div>
                           </div>
-                          <div className="ml-6 flex gap-2">
+                          <div className="ml-4 flex gap-2 shrink-0">
                             <button
                               onClick={() => handleApprove(request.request_id)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                              className="btn-ink px-4 py-2 rounded-xl text-sm"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleReject(request.request_id)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                              className="btn-paper px-4 py-2 rounded-xl text-sm"
                             >
                               Reject
                             </button>
@@ -338,53 +339,51 @@ export default function AdminVendors() {
             {activeTab === 'vendors' && (
               <div>
                 {vendors.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-10 text-sm font-bold text-ink-500">
                     <p>No vendors registered yet</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="overflow-x-auto -mx-5 px-5">
+                    <table className="min-w-full divide-y divide-line">
                       <thead>
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sessions</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Approved</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Company</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Email</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Status</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Sessions</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Approved</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-bold text-ink-500 uppercase tracking-wide">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white divide-y divide-line">
                         {vendors.map((vendor) => (
-                          <tr key={vendor.vendor_id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <tr key={vendor.vendor_id} className="hover:bg-mist-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-ink-900">
                               {vendor.company_name}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-ink-500">
                               {vendor.email}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded ${
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-[11px] font-bold rounded-lg border ${
                                 vendor.approval_status === 'APPROVED'
-                                  ? 'bg-green-100 text-green-800'
-                                  : vendor.approval_status === 'SUSPENDED'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
+                                  ? 'bg-ink-950 text-white border-ink-950'
+                                  : 'bg-mist-100 text-ink-900 border-line'
                               }`}>
                                 {vendor.approval_status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-ink-900">
                               {vendor.upload_sessions || 0}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-ink-500">
                               {vendor.approved_at ? formatDate(vendor.approved_at) : 'N/A'}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
                               {vendor.approval_status !== 'SUSPENDED' && (
                                 <button
                                   onClick={() => handleSuspendVendor(vendor.vendor_id)}
-                                  className="text-red-600 hover:text-red-800 font-medium"
+                                  className="font-bold text-ink-900 hover:underline"
                                 >
                                   Suspend
                                 </button>
@@ -402,29 +401,29 @@ export default function AdminVendors() {
             {/* Activity Report Tab */}
             {activeTab === 'activity' && activity && (
               <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <div className="text-sm text-blue-600 font-medium mb-1">Total Uploads</div>
-                    <div className="text-3xl font-bold text-blue-900">{activity.summary.total_uploads}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                  <div className="bg-ink-950 text-white rounded-xl p-4">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-white/60 mb-1">Total Uploads</div>
+                    <div className="text-2xl font-bold">{activity.summary.total_uploads}</div>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-6">
-                    <div className="text-sm text-green-600 font-medium mb-1">Active Vendors</div>
-                    <div className="text-3xl font-bold text-green-900">{activity.summary.active_vendors}</div>
+                  <div className="bg-mist-50 border border-line rounded-xl p-4">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-ink-500 mb-1">Active Vendors</div>
+                    <div className="text-2xl font-bold text-ink-950">{activity.summary.active_vendors}</div>
                   </div>
                 </div>
 
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendor Activity (Last 30 Days)</h3>
-                <div className="space-y-3">
+                <h3 className="text-base font-bold tracking-tight text-ink-900 mb-3">Vendor Activity (Last 30 Days)</h3>
+                <div className="space-y-2.5">
                   {activity.vendors.map((vendor) => (
-                    <div key={vendor.vendor_id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900">{vendor.company}</div>
-                          <div className="text-sm text-gray-600 mt-1">
+                    <div key={vendor.vendor_id} className="border border-line rounded-xl p-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-bold text-ink-900 text-sm">{vendor.company}</div>
+                          <div className="text-xs font-semibold text-ink-500 mt-0.5">
                             {vendor.total_uploads} uploads · {vendor.sessions_count} sessions · {vendor.active_sessions} active
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs font-semibold text-ink-500 shrink-0">
                           Last: {formatDate(vendor.last_activity)}
                         </div>
                       </div>
@@ -438,29 +437,29 @@ export default function AdminVendors() {
             {activeTab === 'sessions' && (
               <div>
                 {sessions.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-10 text-sm font-bold text-ink-500">
                     <p>No active vendor sessions</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {sessions.map((session) => (
-                      <div key={session.session_id} className="border border-gray-200 rounded-lg p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">
+                      <div key={session.session_id} className="border border-line rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-bold text-ink-900">
                               {session.vendor?.company || 'Unknown'}
                             </h3>
-                            <div className="mt-2 space-y-1 text-sm text-gray-600">
-                              <p><strong>Session ID:</strong> {session.session_id}</p>
-                              <p><strong>Vendor ID:</strong> {session.vendor?.vendor_id}</p>
-                              <p><strong>Uploads:</strong> {session.upload_count || 0}</p>
-                              <p><strong>Created:</strong> {formatDate(session.created_at)}</p>
-                              <p><strong>Expires:</strong> {formatDate(session.expires_at)}</p>
+                            <div className="mt-2 space-y-1 text-xs font-semibold text-ink-500">
+                              <p><strong className="text-ink-900">Session ID:</strong> {session.session_id}</p>
+                              <p><strong className="text-ink-900">Vendor ID:</strong> {session.vendor?.vendor_id}</p>
+                              <p><strong className="text-ink-900">Uploads:</strong> {session.upload_count || 0}</p>
+                              <p><strong className="text-ink-900">Created:</strong> {formatDate(session.created_at)}</p>
+                              <p><strong className="text-ink-900">Expires:</strong> {formatDate(session.expires_at)}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleRevokeSession(session.session_id)}
-                            className="ml-6 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                            className="btn-ink ml-4 px-4 py-2 rounded-xl text-sm shrink-0"
                           >
                             Revoke
                           </button>

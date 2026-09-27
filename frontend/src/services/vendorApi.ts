@@ -31,7 +31,12 @@ vendorApi.interceptors.request.use(
 
 // Response interceptor
 vendorApi.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Any write invalidates the GET cache so later reads stay fresh
+    const m = (response.config?.method || 'get').toLowerCase();
+    if (m !== 'get') clearVendorCache();
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('vendor_session_token');
@@ -40,9 +45,29 @@ vendorApi.interceptors.response.use(
         window.location.href = '/vendor/login';
       }
     }
+    // Don't hammer a rate-limited backend: surface a friendly message
+    if (error.response?.status === 429) {
+      error.message = 'Too many requests — please wait a few seconds and try again.';
+    }
     return Promise.reject(error);
   }
 );
+
+// Short-lived GET cache (30s) to absorb tab remounts + parallel fans
+const __getCache = new Map<string, { t: number; data: any }>();
+const CACHE_TTL_MS = 30_000;
+export function clearVendorCache() {
+  __getCache.clear();
+}
+async function cachedGet<T = any>(key: string, fetcher: () => Promise<{ data: T }>): Promise<{ data: T }> {
+  const hit = __getCache.get(key);
+  if (hit && Date.now() - hit.t < CACHE_TTL_MS) {
+    return { data: hit.data as T };
+  }
+  const res = await fetcher();
+  __getCache.set(key, { t: Date.now(), data: res.data });
+  return { data: res.data };
+}
 
 // Types
 export interface VendorRegistration {
@@ -225,7 +250,7 @@ export const uploadVendorBulk = async (files: File[]) => {
  * Get current session info
  */
 export const getVendorSession = async () => {
-  const response = await vendorApi.get('/vendor/upload/session');
+  const response = await cachedGet<any>('GET:/vendor/upload/session', () => vendorApi.get('/vendor/upload/session'));
   return response.data;
 };
 
@@ -233,7 +258,7 @@ export const getVendorSession = async () => {
  * Get upload history
  */
 export const getVendorUploadHistory = async () => {
-  const response = await vendorApi.get('/vendor/upload/history');
+  const response = await cachedGet<any>('GET:/vendor/upload/history', () => vendorApi.get('/vendor/upload/history'));
   return response.data;
 };
 
@@ -241,7 +266,7 @@ export const getVendorUploadHistory = async () => {
  * Get vendor configurations
  */
 export const getVendorConfigurations = async () => {
-  const response = await vendorApi.get('/vendor/configurations');
+  const response = await cachedGet<any>('GET:/vendor/configurations', () => vendorApi.get('/vendor/configurations'));
   return response.data;
 };
 
@@ -249,7 +274,7 @@ export const getVendorConfigurations = async () => {
  * Get vendor audits
  */
 export const getVendorAudits = async () => {
-  const response = await vendorApi.get('/vendor/audits');
+  const response = await cachedGet<any>('GET:/vendor/audits', () => vendorApi.get('/vendor/audits'));
   return response.data;
 };
 
@@ -272,21 +297,58 @@ export const getVendorAudit = async (auditId: string): Promise<{ success: boolea
       return enhanced;
     }
 
-    // Convert enhanced format to legacy format
+    // Convert enhanced format to legacy format safely
+    const dataAny = enhanced.data as any;
+    const summary = dataAny.audit_summary || {};
+    const parsing = dataAny.parsing_analysis || {};
+    const findingsObj = dataAny.findings || {};
+    const rawFindings: any[] = findingsObj.details || (Array.isArray(dataAny.findings) ? dataAny.findings : []);
+
+    // Normalize findings to UI shape (rule_name/title, severity, category, evidence string, recommendation)
+    const normalized = (rawFindings || []).map((f: any) => {
+      const ev = f.evidence;
+      const evStr = typeof ev === 'string' ? ev : (ev?.evidence_text || f.evidence_text || '');
+      const rec = f.recommendation || f.remediation?.guidance || (typeof f.remediation === 'string' ? f.remediation : '') || '';
+      return {
+        finding_id: f.finding_id || `${f.rule_id || 'FND'}-${Math.random().toString(36).slice(2, 8)}`,
+        rule_id: f.rule_id || 'N/A',
+        rule_name: f.rule_name || f.title || f.rule_id || 'Finding',
+        title: f.title || f.rule_name || f.rule_id || 'Finding',
+        severity: (f.severity || 'LOW').toString(),
+        category: f.category || (f.rule_id && f.rule_id.includes('-') ? f.rule_id.split('-')[0] : 'General'),
+        description: f.description || '',
+        evidence: evStr,
+        evidence_file: ev?.evidence_file || f.evidence_file || '',
+        evidence_line: ev?.evidence_line || f.evidence_line || null,
+        evidence_text: evStr,
+        recommendation: rec,
+        remediation: rec,
+        status: f.status || 'UNKNOWN',
+        confidence_score: f.confidence_score ?? 0.95,
+      };
+    });
+
+    const passed = summary.passed_count ?? dataAny.passed_count ?? findingsObj.summary?.by_status?.pass ?? normalized.filter(x => x.status === 'PASS').length;
+    const failed = summary.failed_count ?? dataAny.failed_count ?? findingsObj.summary?.by_status?.fail ?? normalized.filter(x => x.status === 'FAIL').length;
+    const warnings = summary.warning_count ?? dataAny.warning_count ?? findingsObj.summary?.by_status?.warning ?? normalized.filter(x => x.status === 'WARNING').length;
+
     const legacyData = {
-      audit_id: enhanced.data.audit_id,
-      configuration: enhanced.data.configuration,
-      status: enhanced.data.audit_summary.status,
-      compliance_score: enhanced.data.audit_summary.compliance_score,
-      risk_score: enhanced.data.audit_summary.risk_score,
-      risk_level: enhanced.data.audit_summary.risk_level,
-      started_at: enhanced.data.audit_summary.started_at,
-      completed_at: enhanced.data.audit_summary.completed_at,
-      requires_human_review: enhanced.data.parsing_analysis.requires_human_review,
-      review_reason: enhanced.data.parsing_analysis.review_reason,
-      interpretation_confidence: enhanced.data.parsing_analysis.interpretation_confidence,
-      findings: enhanced.data.findings.details,
-      findings_summary: enhanced.data.findings.summary
+      audit_id: dataAny.audit_id || auditId,
+      configuration: dataAny.configuration || {},
+      status: summary.status || dataAny.status || 'COMPLETED',
+      compliance_score: summary.compliance_score ?? dataAny.compliance_score ?? 0,
+      risk_score: summary.risk_score ?? dataAny.risk_score ?? 0,
+      risk_level: summary.risk_level || dataAny.risk_level || 'MEDIUM',
+      passed_count: passed,
+      failed_count: failed,
+      warning_count: warnings,
+      started_at: summary.started_at || dataAny.started_at || new Date().toISOString(),
+      completed_at: summary.completed_at || dataAny.completed_at,
+      requires_human_review: parsing.requires_human_review ?? dataAny.requires_human_review ?? false,
+      review_reason: parsing.review_reason || dataAny.review_reason || '',
+      interpretation_confidence: parsing.interpretation_confidence ?? dataAny.interpretation_confidence ?? 0.95,
+      findings: normalized,
+      findings_summary: findingsObj.summary || dataAny.findings_summary || {}
     };
 
     return {
@@ -299,6 +361,19 @@ export const getVendorAudit = async (auditId: string): Promise<{ success: boolea
       success: false,
       error: 'Failed to fetch audit details'
     };
+  }
+};
+
+/**
+ * Get findings for vendor audit (vendor-scoped, uses session token)
+ */
+export const getVendorAuditFindings = async (auditId: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const response = await cachedGet(`GET:/vendor/audit/${auditId}/findings`, () => vendorApi.get(`/vendor/audit/${auditId}/findings`));
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching vendor audit findings:', error);
+    return { success: false, error: 'Failed to fetch findings' };
   }
 };
 
@@ -635,7 +710,7 @@ export interface AuditSummary {
 // Enhanced API functions
 export const getVendorConfigurationDetails = async (configId: string): Promise<{ success: boolean; data?: ConfigurationDetails; error?: string }> => {
   try {
-    const response = await vendorApi.get(`/vendor/configuration/${configId}`);
+    const response = await cachedGet(`GET:/vendor/configuration/${configId}`, () => vendorApi.get(`/vendor/configuration/${configId}`));
     return response.data;
   } catch (error) {
     console.error('Error fetching configuration details:', error);
@@ -648,7 +723,7 @@ export const getVendorConfigurationDetails = async (configId: string): Promise<{
 
 export const getVendorAuditEnhanced = async (auditId: string): Promise<{ success: boolean; data?: EnhancedAuditDetails; error?: string }> => {
   try {
-    const response = await vendorApi.get(`/vendor/audit/${auditId}`);
+    const response = await cachedGet(`GET:/vendor/audit/${auditId}`, () => vendorApi.get(`/vendor/audit/${auditId}`));
     return response.data;
   } catch (error) {
     console.error('Error fetching enhanced audit details:', error);
@@ -668,6 +743,22 @@ export const downloadVendorAuditReportEnhanced = async (auditId: string): Promis
       },
       responseType: 'blob'
     });
+
+    const contentType = (response.headers['content-type'] || '') as string;
+    // Backend returns JSON on error even with blob responseType -> detect and throw readable error
+    if (contentType.includes('application/json')) {
+      const text = await (response.data as Blob).text();
+      try {
+        const j = JSON.parse(text);
+        throw new Error(j?.detail?.error?.message || j?.message || 'Failed to generate PDF report');
+      } catch (e: any) {
+        if (e?.message && !e.message.includes('Unexpected')) throw e;
+        throw new Error('Failed to generate PDF report');
+      }
+    }
+    if ((response.data as Blob)?.size === 0) {
+      throw new Error('Empty PDF received from server');
+    }
     
     // Create blob and download
     const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -705,7 +796,7 @@ export const downloadVendorAuditReport = downloadVendorAuditReportEnhanced;
 // Enhanced Analytics API functions
 export const getVendorAnalyticsOverview = async (timeframe: string = '30d'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const response = await vendorApi.get(`/vendor/analytics/overview?timeframe=${timeframe}`);
+    const response = await cachedGet(`GET:/vendor/analytics/overview?timeframe=${timeframe}`, () => vendorApi.get(`/vendor/analytics/overview?timeframe=${timeframe}`));
     return response.data;
   } catch (error) {
     console.error('Error fetching analytics overview:', error);
@@ -718,7 +809,7 @@ export const getVendorAnalyticsOverview = async (timeframe: string = '30d'): Pro
 
 export const getVendorComplianceTrends = async (timeframe: string = '30d'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const response = await vendorApi.get(`/vendor/analytics/trends?timeframe=${timeframe}`);
+    const response = await cachedGet(`GET:/vendor/analytics/trends?timeframe=${timeframe}`, () => vendorApi.get(`/vendor/analytics/trends?timeframe=${timeframe}`));
     return response.data;
   } catch (error) {
     console.error('Error fetching compliance trends:', error);
@@ -731,7 +822,7 @@ export const getVendorComplianceTrends = async (timeframe: string = '30d'): Prom
 
 export const getVendorRiskDistribution = async (): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const response = await vendorApi.get('/vendor/analytics/risk-distribution');
+    const response = await cachedGet<any>('GET:/vendor/analytics/risk-distribution', () => vendorApi.get('/vendor/analytics/risk-distribution'));
     return response.data;
   } catch (error) {
     console.error('Error fetching risk distribution:', error);
@@ -744,7 +835,7 @@ export const getVendorRiskDistribution = async (): Promise<{ success: boolean; d
 
 export const getVendorFindingCategories = async (): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const response = await vendorApi.get('/vendor/analytics/categories');
+    const response = await cachedGet<any>('GET:/vendor/analytics/categories', () => vendorApi.get('/vendor/analytics/categories'));
     return response.data;
   } catch (error) {
     console.error('Error fetching finding categories:', error);

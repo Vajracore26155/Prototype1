@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { requestVendorOTP, verifyVendorOTP, vendorPasswordLogin } from '../services/vendorApi';
+import VajraMark from '../components/VajraMark';
 
 export default function VendorLogin() {
   const navigate = useNavigate();
@@ -96,25 +97,28 @@ export default function VendorLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
+    <div className="min-h-screen tatva-hero-bg flex items-center justify-center px-4 py-10">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Login</h1>
-          <p className="text-gray-600">Choose your preferred login method</p>
+          <div className="inline-flex items-center justify-center p-3 bg-white border border-line rounded-2xl mb-4 shadow-sm">
+            <VajraMark className="w-10 h-10" />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-ink-900 mb-1">Vendor Login</h1>
+          <p className="text-xs font-bold tracking-[0.24em] text-ink-500">TATVA BY TEAM VAJRACORE</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="tatva-card overflow-hidden">
           {/* Login Method Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-line">
             <button
               onClick={() => {
                 setLoginMethod('otp');
                 setError('');
               }}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors ${
+              className={`flex-1 py-4 px-4 text-sm font-bold transition-colors ${
                 loginMethod === 'otp'
-                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-600 hover:text-gray-700'
+                  ? 'bg-ink-950 text-white'
+                  : 'text-ink-500 hover:text-ink-900'
               }`}
             >
               OTP Login
@@ -124,10 +128,10 @@ export default function VendorLogin() {
                 setLoginMethod('password');
                 setError('');
               }}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors ${
+              className={`flex-1 py-4 px-4 text-sm font-bold transition-colors ${
                 loginMethod === 'password'
-                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-600 hover:text-gray-700'
+                  ? 'bg-ink-950 text-white'
+                  : 'text-ink-500 hover:text-ink-900'
               }`}
             >
               Password Login
@@ -140,13 +144,13 @@ export default function VendorLogin() {
               otpStep === 'email' ? (
                 <form onSubmit={handleRequestOTP} className="space-y-6">
                   {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-white border border-ink-900 text-ink-900 px-4 py-3 rounded-xl text-sm font-bold">
                       {error}
                     </div>
                   )}
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wide text-ink-900 mb-2">
                       Email Address
                     </label>
                     <input
@@ -155,20 +159,17 @@ export default function VendorLogin() {
                       required
                       value={otpEmail}
                       onChange={(e) => setOtpEmail(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-line rounded-xl font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-ink-900"
                       placeholder="vendor@company.com"
                       autoFocus
                     />
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-mist-100 border border-line rounded-xl p-4">
                     <div className="flex items-start">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">Email-Based Authentication</p>
-                        <p>We'll send a 6-digit OTP code to your email. The code expires in 10 minutes.</p>
+                      <div className="text-sm text-ink-900">
+                        <p className="font-bold mb-1">Email-Based Authentication</p>
+                        <p className="font-medium text-ink-500">We&apos;ll send a 6-digit OTP code to your email. The code expires in 10 minutes.</p>
                       </div>
                     </div>
                   </div>
@@ -176,7 +177,7 @@ export default function VendorLogin() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn-ink w-full py-3 px-4 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Sending OTP...' : 'Send OTP Code'}
                   </button>
@@ -184,19 +185,19 @@ export default function VendorLogin() {
               ) : (
                 <form onSubmit={handleVerifyOTP} className="space-y-6">
                   {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-white border border-ink-900 text-ink-900 px-4 py-3 rounded-xl text-sm font-bold">
                       {error}
                     </div>
                   )}
 
                   {otpSent && (
-                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-mist-100 border border-line text-ink-900 px-4 py-3 rounded-xl text-sm font-bold">
                       <strong>OTP Sent!</strong> Check your email for the 6-digit code.
                     </div>
                   )}
 
                   <div>
-                    <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="otp" className="block text-xs font-bold uppercase tracking-wide text-ink-900 mb-2">
                       OTP Code
                     </label>
                     <input
@@ -206,20 +207,20 @@ export default function VendorLogin() {
                       maxLength={6}
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-center text-2xl tracking-widest font-mono"
+                      className="w-full px-4 py-3 border border-line rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-ink-900 text-center text-2xl tracking-widest font-bold text-ink-900"
                       placeholder="000000"
                       autoFocus
                     />
-                    <p className="mt-2 text-xs text-gray-500 text-center">
-                      Code sent to: <strong>{otpEmail}</strong>
+                    <p className="mt-2 text-xs font-semibold text-ink-500 text-center">
+                      Code sent to: <strong className="text-ink-900">{otpEmail}</strong>
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm font-bold">
                     <button
                       type="button"
                       onClick={() => setOtpStep('email')}
-                      className="text-gray-600 hover:text-gray-700 font-medium"
+                      className="text-ink-500 hover:text-ink-900"
                     >
                       ← Change email
                     </button>
@@ -227,7 +228,7 @@ export default function VendorLogin() {
                       type="button"
                       onClick={handleResendOTP}
                       disabled={loading}
-                      className="text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50"
+                      className="text-ink-900 hover:underline disabled:opacity-50"
                     >
                       Resend OTP
                     </button>
@@ -236,7 +237,7 @@ export default function VendorLogin() {
                   <button
                     type="submit"
                     disabled={loading || otpCode.length !== 6}
-                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn-ink w-full py-3 px-4 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Verifying...' : 'Verify & Login'}
                   </button>
@@ -248,13 +249,13 @@ export default function VendorLogin() {
             {loginMethod === 'password' && (
               <form onSubmit={handlePasswordLogin} className="space-y-6">
                 {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  <div className="bg-white border border-ink-900 text-ink-900 px-4 py-3 rounded-xl text-sm font-bold">
                     {error}
                   </div>
                 )}
 
                 <div>
-                  <label htmlFor="password-email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="password-email" className="block text-xs font-bold uppercase tracking-wide text-ink-900 mb-2">
                     Email Address
                   </label>
                   <input
@@ -263,14 +264,14 @@ export default function VendorLogin() {
                     required
                     value={passwordEmail}
                     onChange={(e) => setPasswordEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    className="w-full px-4 py-3 border border-line rounded-xl font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-ink-900"
                     placeholder="vendor@company.com"
                     autoFocus
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wide text-ink-900 mb-2">
                     Password
                   </label>
                   <input
@@ -279,53 +280,41 @@ export default function VendorLogin() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    className="w-full px-4 py-3 border border-line rounded-xl font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-ink-900"
                     placeholder="••••••••"
                   />
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                    </svg>
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">Secure Password Login</p>
-                      <p>Use your registered email and password to login securely.</p>
-                    </div>
-                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="btn-ink w-full py-3 px-4 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Logging in...' : 'Login'}
                 </button>
               </form>
             )}
 
-            <div className="mt-6 text-center space-y-2 border-t border-gray-200 pt-6">
+            <div className="mt-6 text-center space-y-2 border-t border-line pt-6">
               <Link
                 to="/vendor/register"
-                className="block text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                className="block text-sm text-ink-900 hover:underline font-bold"
               >
-                Don't have an account? Register here
+                Don&apos;t have an account? Register here
               </Link>
               <Link
-                to="/login"
-                className="block text-sm text-gray-600 hover:text-gray-700"
+                to="/"
+                className="block text-xs text-ink-500 hover:text-ink-950 font-bold"
               >
-                Internal user? Login here
+                ← Back to home
               </Link>
             </div>
           </div>
         </div>
 
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
-            {loginMethod === 'otp' ? 'OTP codes expire in 10 minutes. You have 5 attempts per code.' : 'Passwords must be at least 8 characters long.'}
+          <p className="text-xs font-bold text-ink-500">
+            TATVA by Team Vajracore
           </p>
         </div>
       </div>

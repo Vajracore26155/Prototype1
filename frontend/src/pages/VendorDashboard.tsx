@@ -568,7 +568,7 @@ export default function VendorDashboard() {
                           </div>
                           <div>
                             <span className="font-medium">Confidence:</span>
-                            <div>{(config.vendor_confidence * 100).toFixed(0)}%</div>
+                            <div>{(((config as any).vendor_confidence ?? 0) * 100).toFixed(0)}%</div>
                           </div>
                           <div>
                             <span className="font-medium">Uploaded:</span>

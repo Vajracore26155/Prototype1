@@ -7,6 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // TATVA pitch-black monochrome (reference: #1C1C1C matte black)
+        'ink': {
+          950: '#1C1C1C',
+          900: '#1C1C1C',
+          700: '#333333',
+          500: '#6E6E6E',
+        },
+        'mist': {
+          50: '#F7F7F8',
+          100: '#EFEFEF',
+          200: '#E2E2E2',
+        },
+        'line': '#D8D8D8',
         // Premium Light Theme Color System
         'brand': {
           50: '#f0f7ff',

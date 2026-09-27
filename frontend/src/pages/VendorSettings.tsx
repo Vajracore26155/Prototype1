@@ -232,7 +232,7 @@ export default function VendorSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg- flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
           <p className="mt-4 text-gray-600">Loading your settings...</p>
@@ -242,7 +242,7 @@ export default function VendorSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg- py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Back Button */}
         <BackButton />
@@ -250,7 +250,7 @@ export default function VendorSettings() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center space-x-3 mb-2">
-            <Settings className="w-8 h-8 text-indigo-600" />
+            <Settings className="w-8 h-8 text-ink-950" />
             <h1 className="text-3xl font-bold text-gray-900">Vendor Settings</h1>
           </div>
           <p className="text-gray-600 ml-11">Manage your profile and security settings</p>
@@ -275,8 +275,8 @@ export default function VendorSettings() {
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Account Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-indigo-50 rounded-lg p-4">
-                <div className="text-xs text-indigo-600 font-medium">Vendor ID</div>
+              <div className="bg-mist-100 rounded-lg p-4">
+                <div className="text-xs text-ink-950 font-medium">Vendor ID</div>
                 <div className="text-sm font-mono text-gray-900 mt-1">{profile.vendor_id}</div>
               </div>
               <div className="bg-blue-50 rounded-lg p-4">
@@ -315,7 +315,7 @@ export default function VendorSettings() {
             onClick={() => setActiveTab('profile')}
             className={`pb-4 px-4 font-medium border-b-2 transition-colors ${
               activeTab === 'profile'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-indigo-600 text-ink-950'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -328,7 +328,7 @@ export default function VendorSettings() {
             onClick={() => setActiveTab('password')}
             className={`pb-4 px-4 font-medium border-b-2 transition-colors ${
               activeTab === 'password'
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-indigo-600 text-ink-950'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -364,7 +364,7 @@ export default function VendorSettings() {
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                   placeholder="Your name"
                 />
               </div>
@@ -378,7 +378,7 @@ export default function VendorSettings() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                   placeholder="+1-555-0100"
                 />
               </div>
@@ -389,7 +389,7 @@ export default function VendorSettings() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                   placeholder="For password-based login"
                 />
                 <p className="text-xs text-gray-500 mt-1">Optional: Used for password login</p>
@@ -398,7 +398,7 @@ export default function VendorSettings() {
               <button
                 type="submit"
                 disabled={updatingProfile}
-                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-ink-950 text-white py-3 px-4 rounded-lg font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {updatingProfile ? 'Updating...' : 'Update Profile'}
               </button>
@@ -430,7 +430,7 @@ export default function VendorSettings() {
                       type="text"
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                       placeholder="Choose a username"
                     />
                   </div>
@@ -441,7 +441,7 @@ export default function VendorSettings() {
                       type="password"
                       value={newPasswordValue}
                       onChange={(e) => setNewPasswordValue(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                       placeholder="At least 8 characters"
                     />
                     <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
@@ -477,7 +477,7 @@ export default function VendorSettings() {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                       placeholder="Enter your current password"
                     />
                   </div>
@@ -489,7 +489,7 @@ export default function VendorSettings() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                       placeholder="At least 8 characters"
                     />
                     <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
@@ -502,7 +502,7 @@ export default function VendorSettings() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ink-950 focus:border-indigo-500 transition-colors"
                       placeholder="Re-enter new password"
                     />
                   </div>
@@ -510,7 +510,7 @@ export default function VendorSettings() {
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full bg-ink-950 text-white py-3 px-4 rounded-lg font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {changingPassword ? 'Changing...' : 'Change Password'}
                   </button>
@@ -525,12 +525,12 @@ export default function VendorSettings() {
             )}
 
             {/* Login Methods Info */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-6">
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-line rounded-2xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Login Methods</h3>
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0 mt-1">
-                    <div className="flex items-center justify-center h-6 w-6 rounded-full bg-indigo-600 text-white text-sm font-bold">
+                    <div className="flex items-center justify-center h-6 w-6 rounded-full bg-ink-950 text-white text-sm font-bold">
                       1
                     </div>
                   </div>

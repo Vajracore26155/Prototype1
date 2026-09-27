@@ -117,6 +117,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userData);
     } catch (error: any) {
       console.error('Login failed:', error);
+      const status = error.response?.status;
+      if (status === 429) {
+        throw new Error(
+          error.response?.data?.error?.message ||
+          'Too many login attempts. Please wait 60 seconds and try once.'
+        );
+      }
       throw new Error(
         error.response?.data?.detail || 'Login failed. Please check your credentials.'
       );

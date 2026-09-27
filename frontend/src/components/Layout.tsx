@@ -1,7 +1,8 @@
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LayoutDashboard, FileText, User, LogOut, Building, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, FileText, User, LogOut, Building, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import VajraMark from './VajraMark';
 
 interface LayoutProps {
   children: ReactNode;
@@ -34,9 +35,9 @@ const Layout = ({ children }: LayoutProps) => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return 'bg-purple-500/40 text-purple-900 border-purple-600/30';
+        return 'bg-mist-200 text-ink-950 border-line';
       case 'ADMIN':
-        return 'bg-indigo-500/40 text-indigo-900 border-indigo-600/30';
+        return 'bg-mist-200 text-ink-950 border-line';
       case 'SECURITY_ANALYST':
         return 'bg-blue-500/40 text-blue-900 border-blue-600/30';
       case 'AUDITOR':
@@ -71,26 +72,32 @@ const Layout = ({ children }: LayoutProps) => {
   const allNavItems = [...navItems, ...adminNavItems];
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-violet-100">
-      {/* Header - Glass Effect */}
-      <header className="header-glass sticky top-0 z-50">
+    <div className="min-h-screen bg-mist-50 text-ink-900">
+      {/* Header */}
+      <header className="bg-white/90 backdrop-blur border-b border-line sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/40 backdrop-blur-xl rounded-xl border border-white/30" style={{ boxShadow: '0 4px 16px -4px rgba(31, 38, 135, 0.15)' }}>
-                <Shield className="w-7 h-7 text-indigo-600" />
-              </div>
+              <VajraMark className="w-9 h-9" />
               <div>
-                <h1 className="text-2xl font-bold text-neutral-900">Tatva</h1>
-                <p className="text-xs text-neutral-700 font-medium">Network Security Compliance Auditor</p>
+                <h1 className="text-2xl font-bold tracking-tight text-ink-900">Tatva</h1>
+                <p className="text-[11px] text-ink-500 font-bold tracking-[0.18em]">NETWORK SECURITY COMPLIANCE AUDITOR</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="px-3 py-1.5 bg-emerald-500/40 backdrop-blur-xl border border-emerald-600/30 rounded-lg flex items-center space-x-2" style={{ boxShadow: '0 4px 16px -4px rgba(31, 38, 135, 0.15)' }}>
-                <span className="inline-block w-2 h-2 bg-emerald-600 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></span>
-                <span className="text-sm font-semibold text-emerald-900">System Active</span>
+            <div className="flex items-center space-x-3">
+              <div className="px-3 py-1.5 bg-mist-100 border border-line rounded-full flex items-center space-x-2">
+                <span className="inline-block w-2 h-2 bg-ink-950 rounded-full animate-pulse"></span>
+                <span className="text-xs font-bold text-ink-900">System Active</span>
               </div>
+
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                className="p-2.5 text-ink-500 hover:text-ink-950 border border-line rounded-xl hover:bg-mist-50"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
 
               {/* User Profile Dropdown */}
               {user && (
@@ -101,7 +108,7 @@ const Layout = ({ children }: LayoutProps) => {
                     style={{ boxShadow: '0 4px 16px -4px rgba(31, 38, 135, 0.15)' }}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <div className="w-9 h-9 bg-ink-950 rounded-lg flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
                       <div className="text-left">
@@ -121,7 +128,7 @@ const Layout = ({ children }: LayoutProps) => {
                       {/* User Info */}
                       <div className="p-4 border-b border-neutral-200">
                         <div className="flex items-center space-x-3 mb-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                          <div className="w-12 h-12 bg-ink-950 rounded-xl flex items-center justify-center">
                             <User className="w-6 h-6 text-white" />
                           </div>
                           <div className="flex-1">
@@ -171,7 +178,7 @@ const Layout = ({ children }: LayoutProps) => {
                   to={item.path}
                   className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-all duration-200 ${
                     isActive(item.path)
-                      ? 'border-indigo-600 text-indigo-900 bg-white/30 backdrop-blur-sm font-semibold'
+                      ? 'border-ink-950 text-ink-950 bg-white/30 backdrop-blur-sm font-semibold'
                       : 'border-transparent text-neutral-700 hover:text-neutral-900 hover:bg-white/20 backdrop-blur-sm font-medium'
                   }`}
                 >

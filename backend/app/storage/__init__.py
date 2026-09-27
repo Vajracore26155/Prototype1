@@ -4,7 +4,7 @@ File storage utilities for configuration files
 import os
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 # Storage directories
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./data/uploads")
@@ -17,10 +17,8 @@ for directory in [UPLOAD_DIR, SANITIZED_DIR, NORMALIZED_DIR, REPORTS_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 
-def generate_config_id() -> str:
+def generate_config_id(db: Any = None) -> str:
     """Generate unique configuration ID like CFG-000001"""
-    # In production, this would query database for the last ID
-    # For prototype, use timestamp-based approach
     import time
     timestamp = int(time.time() * 1000) % 1000000
     return f"CFG-{timestamp:06d}"

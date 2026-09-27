@@ -3,6 +3,7 @@ Rate Limiting Middleware
 Phase 4: API protection against abuse
 """
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Tuple
 from datetime import datetime, timedelta
@@ -16,17 +17,28 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     For production, use Redis-backed rate limiting
     """
     
-    def __init__(self, app, requests_per_minute: int = 60):
+    def __init__(self, app, requests_per_minute: int = 300):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.requests: Dict[str, list] = {}  # {client_id: [timestamp1, timestamp2, ...]}
-        
-        # Endpoint-specific limits
+
+        # Endpoint-specific limits (write/authentication stay strict).
+        # NOTE: matched with str.startswith in insertion order — keep
+        # more-specific vendor GET paths before broader prefixes.
         self.endpoint_limits = {
             "/api/auth/login": 5,  # 5 requests per minute
             "/api/auth/register": 3,  # 3 requests per minute
             "/api/config/upload": 20,  # 20 uploads per minute
             "/api/audit": 10,  # 10 audits per minute
+            "/api/vendor/upload/session": 200,
+            "/api/vendor/upload/history": 200,
+            "/api/vendor/upload": 20,
+            "/api/vendor/audit": 200,
+            "/api/vendor/analytics": 200,
+            "/api/vendor/configurations": 200,
+            "/api/vendor/configuration": 200,
+            "/api/vendor/profile": 200,
+            "/api/vendor/audits": 200,
         }
     
     def _get_client_id(self, request: Request) -> str:
@@ -118,15 +130,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         is_limited, remaining = self._is_rate_limited(client_id, limit)
         
         if is_limited:
-            # Rate limit exceeded
-            raise HTTPException(
+            # Rate limit exceeded — return 429 directly (raising inside
+            # BaseHTTPMiddleware does not render as JSON and surfaces as 500)
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "error": "RATE_LIMIT_EXCEEDED",
-                    "message": f"Rate limit exceeded. Maximum {limit} requests per minute.",
-                    "retry_after": 60
+                content={
+                    "success": False,
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": f"Too many login attempts. Please wait 60 seconds and try again.",
+                    },
                 },
-                headers={"Retry-After": "60"}
+                headers={"Retry-After": "60"},
             )
         
         # Record this request

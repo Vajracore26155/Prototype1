@@ -5,7 +5,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import VendorRegister from './pages/VendorRegister';
@@ -32,7 +31,8 @@ function App() {
             
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            {/* Admin registration disabled on website — single fixed admin.
+                New admins are created via terminal only. */}
             
             {/* Vendor public routes */}
             <Route path="/vendor/register" element={<VendorRegister />} />

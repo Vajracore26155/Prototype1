@@ -8,9 +8,10 @@ from datetime import datetime
 import hashlib
 import os
 
-from app.database import (
-    get_db, Configuration, Device, VendorUser, 
-    VendorUploadSession, SecurityAuditLog
+from app.database.database import get_db
+from app.database.models import (
+    Configuration, Device, VendorUser, 
+    VendorUploadSession, SecurityAuditLog, Audit, Finding
 )
 from app.auth.vendor_auth import require_vendor_session
 from app.parsers import parse_configuration
@@ -748,13 +749,26 @@ async def vendor_get_configuration_details(
         try:
             if config.sanitized_path and os.path.exists(config.sanitized_path):
                 with open(config.sanitized_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()[:50]  # First 50 lines for preview
-                    file_preview = ''.join(lines)
+                    all_lines = f.readlines()
+                    preview_lines = all_lines[:50]
+                    file_preview = ''.join(preview_lines)
                     file_stats = {
-                        "total_lines": len(f.readlines()) + len(lines),
-                        "preview_lines": len(lines),
+                        "total_lines": len(all_lines),
+                        "preview_lines": len(preview_lines),
                         "file_size_bytes": os.path.getsize(config.sanitized_path)
                     }
+            else:
+                fallback = config.storage_path if config.storage_path and os.path.exists(config.storage_path) else None
+                if fallback:
+                    with open(fallback, 'r', encoding='utf-8', errors='ignore') as f:
+                        all_lines = f.readlines()
+                        preview_lines = all_lines[:50]
+                        file_preview = ''.join(preview_lines)
+                        file_stats = {
+                            "total_lines": len(all_lines),
+                            "preview_lines": len(preview_lines),
+                            "file_size_bytes": os.path.getsize(fallback)
+                        }
         except Exception as e:
             file_preview = "File content not available"
             print(f"Error reading file preview: {e}")
@@ -762,31 +776,33 @@ async def vendor_get_configuration_details(
         # Format audit information
         audit_info = []
         for audit in audits:
+            total_l = audit.total_lines_count or 0
+            uninterp = audit.uninterpreted_lines_count or 0
             audit_data = {
                 "audit_id": audit.audit_id,
                 "status": audit.status,
                 "compliance_score": audit.compliance_score,
                 "risk_score": audit.risk_score,
                 "risk_level": audit.risk_level,
-                "started_at": audit.started_at.isoformat(),
+                "started_at": audit.started_at.isoformat() if audit.started_at else None,
                 "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,
                 "requires_human_review": audit.requires_human_review,
                 "interpretation_confidence": audit.interpretation_confidence,
                 "parsing_stats": {
-                    "total_lines": audit.total_lines_count,
-                    "uninterpreted_lines": audit.uninterpreted_lines_count,
+                    "total_lines": total_l,
+                    "uninterpreted_lines": uninterp,
                     "interpretation_rate": (
-                        ((audit.total_lines_count - audit.uninterpreted_lines_count) / audit.total_lines_count * 100) 
-                        if audit.total_lines_count > 0 else 0
+                        ((total_l - uninterp) / total_l * 100) 
+                        if total_l > 0 else 0
                     ),
-                    "pending_mappings": audit.pending_mappings_count
+                    "pending_mappings": audit.pending_mappings_count or 0
                 },
                 "review_reason": audit.review_reason,
                 "findings_count": {
-                    "total": audit.passed_count + audit.failed_count + audit.warning_count,
-                    "passed": audit.passed_count,
-                    "failed": audit.failed_count,
-                    "warnings": audit.warning_count
+                    "total": (audit.passed_count or 0) + (audit.failed_count or 0) + (audit.warning_count or 0),
+                    "passed": audit.passed_count or 0,
+                    "failed": audit.failed_count or 0,
+                    "warnings": audit.warning_count or 0
                 }
             }
             audit_info.append(audit_data)
@@ -801,7 +817,7 @@ async def vendor_get_configuration_details(
                 "status": config.status,
                 "vendor_detection": {
                     "detected_vendor": config.vendor,
-                    "confidence": config.vendor_confidence
+                    "confidence": config.vendor_confidence if config.vendor_confidence is not None else 0
                 },
                 "file_integrity": {
                     "sha256_hash": config.file_hash_sha256,
@@ -814,7 +830,7 @@ async def vendor_get_configuration_details(
                 },
                 "upload_metadata": {
                     "uploaded_by": config.uploaded_by,
-                    "uploaded_at": config.created_at.isoformat(),
+                    "uploaded_at": config.created_at.isoformat() if config.created_at else None,
                     "organization_id": config.organization_id
                 },
                 "audits": audit_info,
@@ -830,6 +846,9 @@ async def vendor_get_configuration_details(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"[ERROR] vendor_get_configuration_details failed for {config_id}: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail={
@@ -842,123 +861,63 @@ async def vendor_get_configuration_details(
         )
 
 
-@router.get("/vendor/audit/{audit_id}")
-async def vendor_get_audit_details(
+@router.get("/vendor/audit/{audit_id}/findings")
+async def vendor_get_audit_findings(
     audit_id: str,
     vendor_session: tuple = Depends(require_vendor_session()),
     db: Session = Depends(get_db)
 ):
     """
-    Get audit details for vendor
+    Get findings for vendor's audit (vendor-scoped, no JWT required).
+    Returns UI-friendly findings list used by VendorAuditDetails page.
     """
     vendor, session = vendor_session
-    
     try:
         from app.database import Audit, Finding
-        
-        # Get audit with vendor-specific check
         audit = db.query(Audit).join(
             Configuration, Audit.configuration_id == Configuration.id
         ).filter(
             Audit.audit_id == audit_id,
-            Configuration.uploaded_by == vendor.vendor_id  # Vendor-specific access control
+            Configuration.uploaded_by == vendor.vendor_id
         ).first()
-        
         if not audit:
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "success": False,
-                    "error": {
-                        "code": "NOT_FOUND",
-                        "message": f"Audit {audit_id} not found or access denied"
-                    }
-                }
+                detail={"success": False, "error": {"code": "NOT_FOUND", "message": f"Audit {audit_id} not found or access denied"}}
             )
-        
-        # Get configuration
-        config = db.query(Configuration).filter(
-            Configuration.id == audit.configuration_id
-        ).first()
-        
-        # Get findings
         findings = db.query(Finding).filter(Finding.audit_id == audit.id).all()
-        
-        # Format findings for response
-        formatted_findings = []
-        for finding in findings:
-            formatted_findings.append({
-                "finding_id": finding.finding_id,
-                "rule_id": finding.rule_id,
-                "rule_name": finding.title,
-                "description": finding.description,
-                "severity": finding.severity,
-                "status": finding.status,
-                "expected": finding.expected,
-                "actual": finding.actual,
-                "field_path": finding.field_path,
-                "remediation": finding.remediation,
-                "impact": getattr(finding, 'impact', 'Not specified'),
-                "configuration_lines": getattr(finding, 'configuration_lines', [])
+        out = []
+        for f in findings:
+            out.append({
+                "finding_id": f.finding_id,
+                "rule_id": f.rule_id,
+                "rule_name": f.title,
+                "title": f.title,
+                "description": f.description or "",
+                "severity": f.severity or "LOW",
+                "status": f.status or "UNKNOWN",
+                "category": f.rule_id.split("-")[0] if f.rule_id and "-" in f.rule_id else "General",
+                "expected": f.expected,
+                "actual": f.actual,
+                "field_path": f.field_path,
+                "evidence": f.evidence_text or "",
+                "evidence_file": f.evidence_file,
+                "evidence_line": f.evidence_line,
+                "evidence_text": f.evidence_text,
+                "recommendation": f.remediation or "",
+                "remediation": f.remediation or "",
+                "risk_score": f.risk_score,
+                "confidence_score": 0.95,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
             })
-        
-        return {
-            "success": True,
-            "data": {
-                "audit_id": audit.audit_id,
-                "configuration": {
-                    "config_id": config.config_id,
-                    "filename": config.original_filename,
-                    "vendor": config.vendor
-                },
-                "status": audit.status,
-                "compliance_score": audit.compliance_score,
-                "risk_score": audit.risk_score,
-                "risk_level": audit.risk_level,
-                "passed_count": audit.passed_count,
-                "failed_count": audit.failed_count,
-                "warning_count": audit.warning_count,
-                "started_at": audit.started_at.isoformat(),
-                "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,
-                "error_message": audit.error_message,
-                "requires_human_review": audit.requires_human_review,
-                "review_reason": audit.review_reason,
-                "interpretation_confidence": audit.interpretation_confidence,
-                "findings": formatted_findings,
-                "findings_summary": {
-                    "total": len(findings),
-                    "by_severity": {
-                        "critical": len([f for f in findings if f.severity == "CRITICAL"]),
-                        "high": len([f for f in findings if f.severity == "HIGH"]),
-                        "medium": len([f for f in findings if f.severity == "MEDIUM"]),
-                        "low": len([f for f in findings if f.severity == "LOW"])
-                    },
-                    "by_status": {
-                        "pass": len([f for f in findings if f.status == "PASS"]),
-                        "fail": len([f for f in findings if f.status == "FAIL"]),
-                        "unknown": len([f for f in findings if f.status == "UNKNOWN"])
-                    }
-                },
-                "vendor_info": {
-                    "vendor_id": vendor.vendor_id,
-                    "company": vendor.company_name
-                }
-            }
-        }
-        
+        return {"success": True, "data": {"audit_id": audit.audit_id, "findings": out, "total": len(out)}}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "error": {
-                    "code": "GET_FAILED",
-                    "message": "Failed to retrieve audit"
-                }
-            }
-        )
+        import traceback
+        print(f"[ERROR] vendor_get_audit_findings failed for {audit_id}: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail={"success": False, "error": {"code": "GET_FAILED", "message": "Failed to retrieve findings"}})
 
 
 @router.get("/vendor/audit/{audit_id}/report")
@@ -1038,7 +997,9 @@ async def vendor_download_enhanced_audit_report(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[ERROR] Enhanced PDF generation failed: {e}")
+        import traceback
+        print(f"[ERROR] Enhanced PDF generation failed for {audit_id}: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail={
@@ -1046,80 +1007,6 @@ async def vendor_download_enhanced_audit_report(
                 "error": {
                     "code": "PDF_GENERATION_FAILED",
                     "message": "Failed to generate enhanced PDF report"
-                }
-            }
-        )
-        
-        if not audit:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "success": False,
-                    "error": {
-                        "code": "NOT_FOUND",
-                        "message": f"Audit {audit_id} not found or access denied"
-                    }
-                }
-            )
-        
-        # Get configuration for filename
-        config = db.query(Configuration).filter(
-            Configuration.id == audit.configuration_id
-        ).first()
-        
-        # Generate PDF report using same system as admin
-        from app.api.audit import generate_audit_report
-        pdf_buffer = generate_audit_report(audit_id, db)
-        
-        # Log security event
-        log = SecurityAuditLog(
-            log_id=generate_log_id(db),
-            user_id=None,  # Vendor action
-            organization_id=vendor.organization_id,
-            event_type="VENDOR_REPORT",
-            action="DOWNLOAD",
-            result="SUCCESS",
-            resource_type="audit",
-            resource_id=audit_id,
-            details={
-                "audit_id": audit_id,
-                "report_type": "pdf",
-                "vendor_id": vendor.vendor_id,
-                "vendor_email": vendor.email,
-                "company": vendor.company_name
-            },
-            ip_address="",
-            user_agent=""
-        )
-        db.add(log)
-        db.commit()
-        
-        # Create filename
-        config_name = config.original_filename.replace('.', '_') if config else 'unknown'
-        filename = f"vendor_audit_report_{audit_id}_{config_name}_{vendor.vendor_id}.pdf"
-        
-        # Return PDF as streaming response
-        return StreamingResponse(
-            pdf_buffer,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Vendor PDF generation error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "success": False,
-                "error": {
-                    "code": "REPORT_GENERATION_FAILED",
-                    "message": f"Failed to generate PDF report: {str(e)}"
                 }
             }
         )
@@ -1370,13 +1257,26 @@ async def vendor_get_configuration_details(
         try:
             if config.sanitized_path and os.path.exists(config.sanitized_path):
                 with open(config.sanitized_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()[:50]  # First 50 lines for preview
-                    file_preview = ''.join(lines)
+                    all_lines = f.readlines()
+                    preview_lines = all_lines[:50]
+                    file_preview = ''.join(preview_lines)
                     file_stats = {
-                        "total_lines": len(f.readlines()) + len(lines),
-                        "preview_lines": len(lines),
+                        "total_lines": len(all_lines),
+                        "preview_lines": len(preview_lines),
                         "file_size_bytes": os.path.getsize(config.sanitized_path)
                     }
+            else:
+                fallback = config.storage_path if config.storage_path and os.path.exists(config.storage_path) else None
+                if fallback:
+                    with open(fallback, 'r', encoding='utf-8', errors='ignore') as f:
+                        all_lines = f.readlines()
+                        preview_lines = all_lines[:50]
+                        file_preview = ''.join(preview_lines)
+                        file_stats = {
+                            "total_lines": len(all_lines),
+                            "preview_lines": len(preview_lines),
+                            "file_size_bytes": os.path.getsize(fallback)
+                        }
         except Exception as e:
             file_preview = "File content not available"
             print(f"Error reading file preview: {e}")
@@ -1384,31 +1284,33 @@ async def vendor_get_configuration_details(
         # Format audit information
         audit_info = []
         for audit in audits:
+            total_l = audit.total_lines_count or 0
+            uninterp = audit.uninterpreted_lines_count or 0
             audit_data = {
                 "audit_id": audit.audit_id,
                 "status": audit.status,
                 "compliance_score": audit.compliance_score,
                 "risk_score": audit.risk_score,
                 "risk_level": audit.risk_level,
-                "started_at": audit.started_at.isoformat(),
+                "started_at": audit.started_at.isoformat() if audit.started_at else None,
                 "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,
                 "requires_human_review": audit.requires_human_review,
                 "interpretation_confidence": audit.interpretation_confidence,
                 "parsing_stats": {
-                    "total_lines": audit.total_lines_count,
-                    "uninterpreted_lines": audit.uninterpreted_lines_count,
+                    "total_lines": total_l,
+                    "uninterpreted_lines": uninterp,
                     "interpretation_rate": (
-                        ((audit.total_lines_count - audit.uninterpreted_lines_count) / audit.total_lines_count * 100) 
-                        if audit.total_lines_count > 0 else 0
+                        ((total_l - uninterp) / total_l * 100) 
+                        if total_l > 0 else 0
                     ),
-                    "pending_mappings": audit.pending_mappings_count
+                    "pending_mappings": audit.pending_mappings_count or 0
                 },
                 "review_reason": audit.review_reason,
                 "findings_count": {
-                    "total": audit.passed_count + audit.failed_count + audit.warning_count,
-                    "passed": audit.passed_count,
-                    "failed": audit.failed_count,
-                    "warnings": audit.warning_count
+                    "total": (audit.passed_count or 0) + (audit.failed_count or 0) + (audit.warning_count or 0),
+                    "passed": audit.passed_count or 0,
+                    "failed": audit.failed_count or 0,
+                    "warnings": audit.warning_count or 0
                 }
             }
             audit_info.append(audit_data)
@@ -1423,7 +1325,7 @@ async def vendor_get_configuration_details(
                 "status": config.status,
                 "vendor_detection": {
                     "detected_vendor": config.vendor,
-                    "confidence": config.vendor_confidence
+                    "confidence": config.vendor_confidence if config.vendor_confidence is not None else 0
                 },
                 "file_integrity": {
                     "sha256_hash": config.file_hash_sha256,
@@ -1436,7 +1338,7 @@ async def vendor_get_configuration_details(
                 },
                 "upload_metadata": {
                     "uploaded_by": config.uploaded_by,
-                    "uploaded_at": config.created_at.isoformat(),
+                    "uploaded_at": config.created_at.isoformat() if config.created_at else None,
                     "organization_id": config.organization_id
                 },
                 "audits": audit_info,
@@ -1452,6 +1354,9 @@ async def vendor_get_configuration_details(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"[ERROR] vendor_get_configuration_details failed for {config_id}: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail={
@@ -1600,7 +1505,7 @@ async def vendor_get_audit_enhanced(
                     "frameworks": get_compliance_frameworks(finding.rule_id),
                     "standards": get_security_standards(finding.rule_id)
                 },
-                "created_at": finding.created_at.isoformat()
+                "created_at": finding.created_at.isoformat() if finding.created_at else None
             }
             formatted_findings.append(finding_data)
         
@@ -1620,16 +1525,18 @@ async def vendor_get_audit_enhanced(
         }
         
         # AI Parsing and Technical Analysis
+        total_l = audit.total_lines_count or 0
+        uninterp = audit.uninterpreted_lines_count or 0
         parsing_analysis = {
             "interpretation_confidence": audit.interpretation_confidence,
-            "total_config_lines": audit.total_lines_count,
-            "successfully_interpreted": audit.total_lines_count - audit.uninterpreted_lines_count if audit.total_lines_count else 0,
-            "uninterpreted_lines": audit.uninterpreted_lines_count,
+            "total_config_lines": total_l,
+            "successfully_interpreted": total_l - uninterp if total_l else 0,
+            "uninterpreted_lines": uninterp,
             "interpretation_rate": (
-                ((audit.total_lines_count - audit.uninterpreted_lines_count) / audit.total_lines_count * 100) 
-                if audit.total_lines_count > 0 else 0
+                ((total_l - uninterp) / total_l * 100) 
+                if total_l > 0 else 0
             ),
-            "pending_ai_mappings": audit.pending_mappings_count,
+            "pending_ai_mappings": audit.pending_mappings_count or 0,
             "requires_human_review": audit.requires_human_review,
             "review_reason": audit.review_reason,
             "normalized_data_available": bool(audit.normalized_data)
@@ -1645,15 +1552,21 @@ async def vendor_get_audit_enhanced(
         
         def calculate_compliance_gap_risk(compliance_score):
             """Calculate compliance gap risk"""
-            if compliance_score >= 90:
+            try:
+                cs = float(compliance_score) if compliance_score is not None else 0
+            except (TypeError, ValueError):
+                cs = 0
+            if cs >= 90:
                 return "Low"
-            elif compliance_score >= 70:
+            elif cs >= 70:
                 return "Medium"
             else:
                 return "High"
         
         def calculate_complexity_risk(total_lines, uninterpreted_lines):
             """Calculate configuration complexity risk"""
+            total_lines = total_lines or 0
+            uninterpreted_lines = uninterpreted_lines or 0
             if not total_lines:
                 return "Unknown"
             
@@ -1800,7 +1713,7 @@ async def vendor_get_audit_enhanced(
                     "config_id": config.config_id,
                     "filename": config.original_filename,
                     "vendor": config.vendor,
-                    "vendor_confidence": config.vendor_confidence,
+                    "vendor_confidence": config.vendor_confidence if config.vendor_confidence is not None else 0,
                     "file_hash": config.file_hash_sha256
                 },
                 "audit_summary": {
@@ -1808,7 +1721,10 @@ async def vendor_get_audit_enhanced(
                     "compliance_score": audit.compliance_score,
                     "risk_score": audit.risk_score,
                     "risk_level": audit.risk_level,
-                    "started_at": audit.started_at.isoformat(),
+                    "passed_count": audit.passed_count or 0,
+                    "failed_count": audit.failed_count or 0,
+                    "warning_count": audit.warning_count or 0,
+                    "started_at": audit.started_at.isoformat() if audit.started_at else None,
                     "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,
                     "duration_seconds": (
                         (audit.completed_at - audit.started_at).total_seconds() 
@@ -1848,6 +1764,9 @@ async def vendor_get_audit_enhanced(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"[ERROR] vendor_get_audit_enhanced failed for {audit_id}: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail={
