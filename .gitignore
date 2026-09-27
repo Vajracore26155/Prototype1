@@ -42,6 +42,10 @@ data/reports/*
 !data/sanitized/.gitkeep
 !data/normalized/.gitkeep
 !data/reports/.gitkeep
+backend/data/uploads/*
+backend/data/sanitized/*
+backend/data/normalized/*
+backend/data/reports/*
 
 # IDEs
 .vscode/
