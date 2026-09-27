@@ -9,6 +9,7 @@ from jose import JWTError, jwt
 import os
 from dotenv import load_dotenv
 import secrets
+import bcrypt
 
 load_dotenv()
 
@@ -19,13 +20,23 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRATION_MINUTES", "60"))
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password - disabled for development"""
-    return password  # Just store plain password for dev
+    """Hash a password using bcrypt directly"""
+    try:
+        password_bytes = password.encode('utf-8')
+        hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+        return hashed.decode('utf-8')
+    except Exception as e:
+        raise RuntimeError(f"Password hashing failed: {e}")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password - disabled for development"""
-    return plain_password == hashed_password  # Simple comparison
+    """Verify a password against its hash using bcrypt directly"""
+    try:
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception as e:
+        raise RuntimeError(f"Password verification failed: {e}")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

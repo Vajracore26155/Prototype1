@@ -26,6 +26,8 @@ export default function VendorUpload() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: string }>({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
 
   useEffect(() => {
     if (!isVendorLoggedIn()) {
@@ -82,15 +84,28 @@ export default function VendorUpload() {
       if (response.success) {
         setUploadProgress({ [file.name]: 'Success!' });
         setSuccess(`File "${file.name}" uploaded successfully!`);
-        setSelectedFiles([]);
         
-        // Reload data
-        await loadSessionInfo();
-        await loadUploadHistory();
-
+        // Get config_id from response for navigation
+        const configId = response.data.config_id;
+        
         // Clear file input
         const fileInput = document.getElementById('file-input') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+        
+        // Start redirect countdown
+        setRedirecting(true);
+        setRedirectCountdown(3);
+        
+        const countdownInterval = setInterval(() => {
+          setRedirectCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              navigate(`/vendor/configuration/${configId}`);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.error?.message || 'Upload failed';
@@ -132,15 +147,28 @@ export default function VendorUpload() {
 
         setUploadProgress(progress);
         setSuccess(`Uploaded ${uploaded.length} of ${selectedFiles.length} files successfully`);
-        setSelectedFiles([]);
-
-        // Reload data
-        await loadSessionInfo();
-        await loadUploadHistory();
-
+        
         // Clear file input
         const fileInput = document.getElementById('file-input') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+
+        // If we have successful uploads, navigate to the first one after delay
+        if (uploaded.length > 0) {
+          const firstConfigId = uploaded[0].config_id;
+          setRedirecting(true);
+          setRedirectCountdown(5);
+          
+          const countdownInterval = setInterval(() => {
+            setRedirectCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                navigate(`/vendor/configuration/${firstConfigId}`);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.error?.message || 'Bulk upload failed';
@@ -230,6 +258,20 @@ export default function VendorUpload() {
             {success && (
               <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
                 {success}
+              </div>
+            )}
+
+            {redirecting && redirectCountdown > 0 && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>
+                    Redirecting to configuration processing in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...
+                  </span>
+                </div>
               </div>
             )}
 

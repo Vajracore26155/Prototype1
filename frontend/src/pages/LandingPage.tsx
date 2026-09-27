@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Users, Lock, ArrowRight, CheckCircle, Zap, BarChart3, Mail } from 'lucide-react';
 

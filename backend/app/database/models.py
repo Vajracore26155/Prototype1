@@ -25,6 +25,7 @@ class Configuration(Base):
     sanitized_path = Column(String(500), nullable=True)
     file_hash_sha256 = Column(String(64), nullable=True, index=True)  # SHA-256 hash for integrity/deduplication
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)  # Phase 4: Multi-tenancy
+    uploaded_by = Column(String(50), nullable=True, index=True)  # Vendor-specific ownership for isolation
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -540,6 +541,7 @@ class VendorUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     vendor_id = Column(String(50), unique=True, index=True, nullable=False)  # VND-000001
     email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(255), unique=True, index=True, nullable=True)  # Optional username for login
     password_hash = Column(String(255), nullable=True)  # Optional: for username/password login
     company_name = Column(String(255), nullable=False)
     contact_name = Column(String(255), nullable=False)
@@ -567,6 +569,10 @@ class VendorUser(Base):
     last_otp_sent = Column(DateTime, nullable=True)
     otp_attempts = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    password_set_at = Column(DateTime, nullable=True)  # When vendor set password
+    password_changed_at = Column(DateTime, nullable=True)  # When vendor last changed password
+    last_login = Column(DateTime, nullable=True)  # Last login time
+    last_login_method = Column(String(50), nullable=True)  # PASSWORD or OTP
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)

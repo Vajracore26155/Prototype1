@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         password
       });
 
-      const { access_token, user_id, email: userEmail, role, organization } = response.data;
+      const { access_token } = response.data;
 
       // Fetch full user details
       const userResponse = await axios.get<User>('/api/auth/me', {

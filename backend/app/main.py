@@ -168,9 +168,12 @@ from app.api import admin
 app.include_router(admin.router, prefix="/api", tags=["System Administration"])
 
 # Phase 10: Vendor Management System
-from app.api import vendor, vendor_upload
-app.include_router(vendor.router, prefix="/api", tags=["Vendor Management"])
+from app.api import vendor_auth, vendor_upload, vendor_profile, enhanced_vendor_upload, vendor_analytics
+app.include_router(vendor_auth.router, prefix="/api", tags=["Vendor Auth"])
 app.include_router(vendor_upload.router, prefix="/api", tags=["Vendor Upload"])
+app.include_router(enhanced_vendor_upload.router, prefix="/api", tags=["Enhanced Vendor Upload"])
+app.include_router(vendor_analytics.router, prefix="/api", tags=["Vendor Analytics"])
+app.include_router(vendor_profile.router, prefix="/api", tags=["Vendor Profile"])
 
 # Phase 12: Mobile QR Session
 from app.api import mobile

@@ -19,7 +19,8 @@ vendorApi.interceptors.request.use(
   (config) => {
     const vendorToken = localStorage.getItem('vendor_session_token');
     if (vendorToken && !config.url?.includes('/vendor/register') && !config.url?.includes('/vendor/request-otp') && !config.url?.includes('/vendor/verify-otp')) {
-      config.headers['X-Vendor-Session-Token'] = vendorToken;
+      // Set the session token header properly
+      (config.headers as any)['X-Vendor-Session-Token'] = vendorToken;
     }
     return config;
   },
@@ -237,6 +238,71 @@ export const getVendorUploadHistory = async () => {
 };
 
 /**
+ * Get vendor configurations
+ */
+export const getVendorConfigurations = async () => {
+  const response = await vendorApi.get('/vendor/configurations');
+  return response.data;
+};
+
+/**
+ * Get vendor audits
+ */
+export const getVendorAudits = async () => {
+  const response = await vendorApi.get('/vendor/audits');
+  return response.data;
+};
+
+/**
+ * Run audit on configuration
+ */
+export const runVendorAudit = async (configId: string) => {
+  const response = await vendorApi.post(`/vendor/audit/${configId}`);
+  return response.data;
+};
+
+/**
+ * Get audit details (legacy function, now redirects to enhanced version)
+ */
+export const getVendorAudit = async (auditId: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+  // Use enhanced version but return simplified format for backward compatibility
+  try {
+    const enhanced = await getVendorAuditEnhanced(auditId);
+    if (!enhanced.success || !enhanced.data) {
+      return enhanced;
+    }
+
+    // Convert enhanced format to legacy format
+    const legacyData = {
+      audit_id: enhanced.data.audit_id,
+      configuration: enhanced.data.configuration,
+      status: enhanced.data.audit_summary.status,
+      compliance_score: enhanced.data.audit_summary.compliance_score,
+      risk_score: enhanced.data.audit_summary.risk_score,
+      risk_level: enhanced.data.audit_summary.risk_level,
+      started_at: enhanced.data.audit_summary.started_at,
+      completed_at: enhanced.data.audit_summary.completed_at,
+      requires_human_review: enhanced.data.parsing_analysis.requires_human_review,
+      review_reason: enhanced.data.parsing_analysis.review_reason,
+      interpretation_confidence: enhanced.data.parsing_analysis.interpretation_confidence,
+      findings: enhanced.data.findings.details,
+      findings_summary: enhanced.data.findings.summary
+    };
+
+    return {
+      success: true,
+      data: legacyData
+    };
+  } catch (error) {
+    console.error('Error in legacy getVendorAudit:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch audit details'
+    };
+  }
+};
+
+/**
  * Revoke current session (logout)
  */
 export const revokeVendorSession = async () => {
@@ -258,9 +324,14 @@ export const revokeVendorSession = async () => {
  */
 export const getVendorRequests = async (status = 'PENDING') => {
   const response = await axios.get(`${API_BASE_URL}/admin/vendor-requests`, {
-    params: { status },
+    params: { 
+      status,
+      _t: Date.now()  // Cache busting parameter
+    },
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
     },
   });
   return response.data;
@@ -270,9 +341,10 @@ export const getVendorRequests = async (status = 'PENDING') => {
  * Approve or reject vendor request
  */
 export const decideVendorRequest = async (requestId: string, approved: boolean, notes?: string) => {
+  const endpoint = approved ? 'approve' : 'reject';
   const response = await axios.post(
-    `${API_BASE_URL}/admin/vendor-requests/${requestId}/decide`,
-    { approved, notes },
+    `${API_BASE_URL}/admin/vendor-requests/${requestId}/${endpoint}`,
+    { notes },
     {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -387,3 +459,298 @@ export const getVendorInfo = (): VendorInfo | null => {
 };
 
 export default vendorApi;
+// Enhanced configuration detail interface
+export interface ConfigurationDetails {
+  config_id: string;
+  filename: string;
+  internal_filename: string;
+  file_type: string;
+  status: string;
+  vendor_detection: {
+    detected_vendor: string;
+    confidence: number;
+  };
+  file_integrity: {
+    sha256_hash: string;
+    storage_path: string | null;
+    sanitized_path: string | null;
+  };
+  file_content: {
+    preview: string;
+    stats: {
+      total_lines: number;
+      preview_lines: number;
+      file_size_bytes: number;
+    };
+  };
+  upload_metadata: {
+    uploaded_by: string;
+    uploaded_at: string;
+    organization_id: number;
+  };
+  audits: AuditSummary[];
+  processing_status: {
+    ingested: boolean;
+    vendor_detected: boolean;
+    audited: boolean;
+    latest_audit: AuditSummary | null;
+  };
+}
+
+// Enhanced audit detail interface
+export interface EnhancedAuditDetails {
+  audit_id: string;
+  configuration: {
+    config_id: string;
+    filename: string;
+    vendor: string;
+    vendor_confidence: number;
+    file_hash: string;
+  };
+  audit_summary: {
+    status: string;
+    compliance_score: number;
+    risk_score: number;
+    risk_level: string;
+    started_at: string;
+    completed_at?: string;
+    duration_seconds?: number;
+    error_message?: string;
+  };
+  parsing_analysis: {
+    interpretation_confidence: number;
+    total_config_lines: number;
+    successfully_interpreted: number;
+    uninterpreted_lines: number;
+    interpretation_rate: number;
+    pending_ai_mappings: number;
+    requires_human_review: boolean;
+    review_reason?: string;
+    normalized_data_available: boolean;
+  };
+  risk_assessment: {
+    overall_risk_score: number;
+    risk_level: string;
+    risk_breakdown: {
+      security_posture: number;
+      compliance_gap: string;
+      configuration_complexity: string;
+    };
+    business_risk_factors: string[];
+  };
+  device_assessment: {
+    security_posture: string;
+    configuration_quality: string;
+    vendor_best_practices: string;
+    maintenance_recommendations: string[];
+  };
+  findings: {
+    total_count: number;
+    summary: {
+      by_severity: {
+        critical: number;
+        high: number;
+        medium: number;
+        low: number;
+      };
+      by_status: {
+        pass: number;
+        fail: number;
+        warning: number;
+        unknown: number;
+      };
+    };
+    details: EnhancedFinding[];
+  };
+  evidence_and_provenance: {
+    evidence_files_analyzed: number;
+    configuration_lines_referenced: number;
+    total_evidence_entries: number;
+  };
+  remediation_guidance: {
+    priority_1_critical: EnhancedFinding[];
+    priority_2_important: EnhancedFinding[];
+    priority_3_maintenance: EnhancedFinding[];
+    estimated_total_effort: string;
+  };
+}
+
+export interface EnhancedFinding {
+  finding_id: string;
+  rule_id: string;
+  rule_name: string;
+  description: string;
+  severity: string;
+  status: string;
+  technical_details: {
+    expected: string;
+    actual: string;
+    field_path: string;
+    risk_score: number;
+  };
+  evidence: {
+    evidence_file: string;
+    evidence_line: number;
+    evidence_text: string;
+    configuration_context: string[];
+  };
+  remediation: {
+    guidance: string;
+    priority: number;
+    estimated_effort: string;
+    business_impact: string;
+  };
+  compliance_mapping: {
+    frameworks: string[];
+    standards: string[];
+  };
+  created_at: string;
+}
+
+export interface AuditSummary {
+  audit_id: string;
+  status: string;
+  compliance_score: number;
+  risk_score: number;
+  risk_level: string;
+  started_at: string;
+  completed_at?: string;
+  requires_human_review: boolean;
+  interpretation_confidence: number;
+  parsing_stats: {
+    total_lines: number;
+    uninterpreted_lines: number;
+    interpretation_rate: number;
+    pending_mappings: number;
+  };
+  review_reason?: string;
+  findings_count: {
+    total: number;
+    passed: number;
+    failed: number;
+    warnings: number;
+  };
+}
+
+// Enhanced API functions
+export const getVendorConfigurationDetails = async (configId: string): Promise<{ success: boolean; data?: ConfigurationDetails; error?: string }> => {
+  try {
+    const response = await vendorApi.get(`/vendor/configuration/${configId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching configuration details:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch configuration details'
+    };
+  }
+};
+
+export const getVendorAuditEnhanced = async (auditId: string): Promise<{ success: boolean; data?: EnhancedAuditDetails; error?: string }> => {
+  try {
+    const response = await vendorApi.get(`/vendor/audit/${auditId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching enhanced audit details:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch enhanced audit details'
+    };
+  }
+};
+
+export const downloadVendorAuditReportEnhanced = async (auditId: string): Promise<void> => {
+  try {
+    const token = localStorage.getItem('vendor_session_token');
+    const response = await vendorApi.get(`/vendor/audit/${auditId}/report`, {
+      headers: {
+        'X-Vendor-Session-Token': token
+      },
+      responseType: 'blob'
+    });
+    
+    // Create blob and download
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    
+    // Extract filename from response headers if available
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = `audit_report_${auditId}.pdf`;
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading enhanced audit report:', error);
+    throw error;
+  }
+};
+
+// Legacy function for backward compatibility
+export const downloadVendorAuditReport = downloadVendorAuditReportEnhanced;
+
+// Enhanced Analytics API functions
+export const getVendorAnalyticsOverview = async (timeframe: string = '30d'): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const response = await vendorApi.get(`/vendor/analytics/overview?timeframe=${timeframe}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching analytics overview:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch analytics overview'
+    };
+  }
+};
+
+export const getVendorComplianceTrends = async (timeframe: string = '30d'): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const response = await vendorApi.get(`/vendor/analytics/trends?timeframe=${timeframe}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching compliance trends:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch compliance trends'
+    };
+  }
+};
+
+export const getVendorRiskDistribution = async (): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const response = await vendorApi.get('/vendor/analytics/risk-distribution');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching risk distribution:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch risk distribution'
+    };
+  }
+};
+
+export const getVendorFindingCategories = async (): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const response = await vendorApi.get('/vendor/analytics/categories');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching finding categories:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch finding categories'
+    };
+  }
+};

@@ -25,6 +25,18 @@ export default function AdminVendors() {
     loadData();
   }, [activeTab]);
 
+  // Auto-refresh pending requests every 15 seconds to prevent stale data
+  useEffect(() => {
+    if (activeTab === 'requests') {
+      const interval = setInterval(() => {
+        console.log('Auto-refreshing pending requests...');
+        loadPendingRequests(false);
+      }, 15000); // Refresh every 15 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
   const loadData = async () => {
     setLoading(true);
     setError('');
@@ -50,10 +62,31 @@ export default function AdminVendors() {
     }
   };
 
-  const loadPendingRequests = async () => {
+  const loadPendingRequests = async (force = false) => {
+    console.log(`Loading pending requests (force: ${force})`);
+    // Force fresh data with cache busting
+    const timestamp = Date.now();
     const response = await getVendorRequests('PENDING');
     if (response.success) {
-      setPendingRequests(response.data.requests || []);
+      const requests = response.data.requests || [];
+      console.log(`Raw requests from API: ${requests.length}`);
+      
+      // Filter out any requests that might be stale or already processed
+      const actuallyPending = requests.filter(req => {
+        const isPending = req.status === 'PENDING' || !req.status || req.status === undefined;
+        if (!isPending) {
+          console.log(`Filtering out non-pending request: ${req.company_name} (${req.status})`);
+        }
+        return isPending;
+      });
+      
+      console.log(`Actually pending requests: ${actuallyPending.length}`);
+      setPendingRequests(actuallyPending);
+      
+      if (force) {
+        setSuccess(`Refreshed data - found ${actuallyPending.length} pending requests`);
+        setTimeout(() => setSuccess(''), 3000);
+      }
     }
   };
 
@@ -80,14 +113,36 @@ export default function AdminVendors() {
 
   const handleApprove = async (requestId: string) => {
     try {
+      setLoading(true);  // Show loading during approval
+      
+      // Check if this request is actually still pending
+      const currentRequests = await getVendorRequests('PENDING');
+      const targetRequest = currentRequests.data.requests?.find(req => req.request_id === requestId);
+      
+      if (!targetRequest) {
+        setError('This vendor request is no longer pending. Refreshing list...');
+        await loadPendingRequests();
+        return;
+      }
+      
       const response = await decideVendorRequest(requestId, true, 'Approved by admin');
       if (response.success) {
         setSuccess('Vendor approved successfully!');
+        // Immediate refresh without page reload
         await loadPendingRequests();
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to approve vendor');
+      // Handle specific error cases
+      if (err.response?.status === 400 && err.response?.data?.detail?.includes('not PENDING')) {
+        setError('This vendor was already processed. Refreshing list...');
+        await loadPendingRequests();
+      } else {
+        setError(err.response?.data?.error?.message || err.response?.data?.detail || 'Failed to approve vendor');
+      }
+      console.error('Approval error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,14 +151,36 @@ export default function AdminVendors() {
     if (!reason) return;
 
     try {
+      setLoading(true);  // Show loading during rejection
+      
+      // Check if this request is actually still pending
+      const currentRequests = await getVendorRequests('PENDING');
+      const targetRequest = currentRequests.data.requests?.find(req => req.request_id === requestId);
+      
+      if (!targetRequest) {
+        setError('This vendor request is no longer pending. Refreshing list...');
+        await loadPendingRequests();
+        return;
+      }
+      
       const response = await decideVendorRequest(requestId, false, reason);
       if (response.success) {
         setSuccess('Vendor rejected');
+        // Immediate refresh without page reload
         await loadPendingRequests();
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to reject vendor');
+      // Handle specific error cases
+      if (err.response?.status === 400 && err.response?.data?.detail?.includes('not PENDING')) {
+        setError('This vendor was already processed. Refreshing list...');
+        await loadPendingRequests();
+      } else {
+        setError(err.response?.data?.error?.message || err.response?.data?.detail || 'Failed to reject vendor');
+      }
+      console.error('Rejection error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -199,6 +276,19 @@ export default function AdminVendors() {
             {/* Pending Requests Tab */}
             {activeTab === 'requests' && (
               <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Pending Vendor Requests</h2>
+                  <button
+                    onClick={() => loadPendingRequests(true)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                    disabled={loading}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh Data
+                  </button>
+                </div>
                 {pendingRequests.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

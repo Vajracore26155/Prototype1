@@ -3,7 +3,6 @@ import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle } from 'lucide
 import { uploadConfiguration } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
-import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 
 const Upload = () => {
@@ -14,7 +13,6 @@ const Upload = () => {
   const [dragActive, setDragActive] = useState(false);
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
-  const { user } = useAuth();
   
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();

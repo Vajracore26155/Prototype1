@@ -1,0 +1,239 @@
+================================================================================
+📊 VENDOR INVENTORY & SYSTEM ANALYSIS
+================================================================================
+
+TOTAL VENDORS: 19
+
+Status Breakdown:
+  ✅ APPROVED:  17 vendors (ready to use)
+  ⏳ PENDING:   1 vendor  (waiting for admin approval)
+  ❌ REJECTED:  1 vendor  (denied access)
+
+================================================================================
+PASSWORD STATUS (CRITICAL FINDING)
+================================================================================
+
+✅ Vendors WITH password set:     5 (26%)
+  - VND-000015 (email_test_345641@test.com)
+  - VND-000007 (login_test_728586@test.com)
+  - VND-000006 (e2e_vendor_199372@test.com)
+  - VND-000005 (vendor97269@test.com)
+
+❌ Vendors WITHOUT password:      14 (74%)
+  - All must use OTP login every time
+
+⚠️  ISSUE: Most vendors have NO password option!
+
+================================================================================
+DATABASE LOCATION
+================================================================================
+
+File:          ./data/sih26155.db
+Type:          SQLite 3
+Main Table:    vendor_users
+Related Tables: vendor_otps, vendor_upload_sessions, vendor_approval_requests
+
+Fields in vendor_users:
+  - id, vendor_id (VND-000001)
+  - email, password_hash
+  - company_name, contact_name, phone
+  - approval_status (PENDING/APPROVED/REJECTED)
+  - organization_id
+  - created_at, updated_at
+
+================================================================================
+YOUR REQUIREMENTS - SUMMARY
+================================================================================
+
+You want to:
+
+1. ✅ Let vendors set USERNAME & PASSWORD during registration
+   → Currently NOT available
+   → Need to add optional password field to registration form
+
+2. ✅ Provide vendor profile/settings page
+   → Three-dot menu (⋮) in vendor dashboard
+   → Show vendor information
+   → Allow changing username/password
+
+3. ✅ Enable PASSWORD-BASED LOGIN
+   → Email + Password login (instead of OTP every time)
+   → Faster and more convenient
+   → Only need to login once
+
+4. ✅ Keep OTP as BACKUP option
+   → For security
+   → For password reset
+   → Optional second factor
+
+================================================================================
+CURRENT VENDOR AUTHENTICATION FLOW
+================================================================================
+
+Step 1: Registration ✅
+  └─ Vendor enters: email, company, contact info
+  └─ NO password option currently
+
+Step 2: Admin Approval ✅
+  └─ Admin reviews and approves
+
+Step 3: OTP Login ✅ (ONLY option right now)
+  └─ Vendor requests OTP
+  └─ System sends 6-digit code
+  └─ Vendor verifies
+  └─ 24-hour session created
+
+Step 4: Upload Configuration ✅
+  └─ Vendor uploads files
+
+Problem: Vendor must use OTP EVERY TIME (no password-based login)
+
+================================================================================
+PROPOSED NEW FLOW
+================================================================================
+
+Step 1: Registration (ENHANCED)
+  ├─ Vendor enters: email, company, contact info
+  └─ NEW: Optional password setup
+        ├─ Username (optional)
+        └─ Password (optional)
+
+Step 2: Admin Approval ✅
+  └─ Admin reviews and approves
+
+Step 3: Login (TWO OPTIONS)
+  ├─ Option A: Email + Password (NEW)
+  │           └─ Faster, no email needed
+  └─ Option B: OTP Login (existing)
+              └─ Security backup
+
+Step 4: Vendor Settings (NEW)
+  └─ Profile page with three-dot menu
+     ├─ View account info
+     ├─ Change username
+     ├─ Change password
+     └─ Manage profile
+
+Step 5: Upload Configuration ✅
+  └─ Vendor uploads files (no more OTP needed every time!)
+
+================================================================================
+WHAT NEEDS TO BE BUILT
+================================================================================
+
+BACKEND (Python/FastAPI):
+  1. Add username field to vendor_users table
+  2. Update vendor registration endpoint
+     - Allow optional username/password during signup
+  3. Create vendor settings endpoints
+     - GET /api/vendor/profile
+     - PUT /api/vendor/profile (update username, phone, etc)
+     - POST /api/vendor/change-password
+  4. Update vendor login endpoint
+     - Support both email+password AND OTP
+
+FRONTEND (React):
+  1. Enhance registration form
+     - Add optional username field
+     - Add optional password field
+  2. Create vendor settings page
+     - Display vendor info
+     - Update form for username/password
+     - Password change section
+  3. Add vendor menu (three-dot)
+     - Top-right corner of vendor dashboard
+     - Options: Profile, Settings, Change Password, Logout
+  4. Update login page
+     - Support email+password login
+     - Keep OTP as backup
+
+================================================================================
+FILE LOCATIONS
+================================================================================
+
+Database:
+  ./data/sih26155.db
+
+Backend Models:
+  backend/app/database/models.py (VendorUser class)
+
+Backend APIs:
+  backend/app/api/vendor.py
+
+Frontend Pages:
+  frontend/src/pages/VendorRegister.tsx
+  frontend/src/pages/VendorDashboard.tsx
+  frontend/src/pages/VendorSettings.tsx (NEW - create this)
+
+Frontend Components:
+  frontend/src/components/VendorHeader.tsx (add menu)
+
+================================================================================
+VENDOR TYPES IDENTIFIED
+================================================================================
+
+By Status:
+  • APPROVED vendors (17) - Active, can use system
+  • PENDING vendors (1)  - Waiting for approval
+  • REJECTED vendors (1) - Denied access
+
+By Login Method:
+  • Password-capable (5)  - Already can use username/password
+  • OTP-only (14)        - Currently must use OTP every time
+
+By Organization:
+  • Different companies represented
+  • Different vendors/partners
+  • All uploading to same central system
+
+By Login Pattern:
+  • Active users - Use system regularly
+  • Inactive users - Registered but haven't used
+  • Test users - Created for testing
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+✅ System Structure: Working well
+✅ Database: Properly designed
+✅ OTP System: Functional
+✅ Registration: Working
+
+⚠️  GAPS:
+   1. No username setup during registration
+   2. Only 5/19 vendors have passwords
+   3. No vendor settings/profile page
+   4. OTP required every single time
+   5. No three-dot menu for vendor options
+
+ACTION ITEMS (Ready to build):
+  1. Add username field to VendorUser model
+  2. Create vendor settings endpoints
+  3. Build vendor settings page UI
+  4. Add three-dot menu to vendor dashboard
+  5. Update registration form
+  6. Update login flow to support both methods
+
+================================================================================
+NEXT DECISION
+================================================================================
+
+Ready to proceed with implementation?
+
+Please clarify:
+  1. Should username be required or optional?
+  2. Can vendors change their email later?
+  3. Password complexity requirements?
+  4. Should OTP be required backup or optional?
+  5. Any specific UI preferences for settings page?
+
+Once you confirm, I'll build:
+  - Database migrations
+  - Backend APIs
+  - Frontend pages
+  - Settings interface
+
+Start: DATABASE MIGRATION (add username field)
+
+================================================================================

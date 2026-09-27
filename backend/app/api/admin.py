@@ -21,6 +21,11 @@ from app.auth.permissions import Permission
 router = APIRouter()
 
 
+# Request models for vendor management
+class VendorDecisionRequest(BaseModel):
+    notes: Optional[str] = None
+
+
 # ============================================================
 # SYSTEM ADMIN AUTHORIZATION
 # ============================================================
@@ -970,7 +975,7 @@ async def get_all_vendors(
 @router.post("/admin/vendor-requests/{request_id}/approve")
 async def approve_vendor_request(
     request_id: str,
-    notes: Optional[str] = None,
+    request_data: VendorDecisionRequest,
     current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
     db: Session = Depends(get_db)
 ):
@@ -980,6 +985,7 @@ async def approve_vendor_request(
     Admin can approve vendors to give them access
     """
     try:
+        notes = request_data.notes
         # Find the request
         req = db.query(VendorApprovalRequest).filter(
             VendorApprovalRequest.request_id == request_id,
@@ -1013,19 +1019,25 @@ async def approve_vendor_request(
         db.add(vendor)
         db.commit()
         
-        # Send approval email to vendor
-        from app.services.email_service import get_email_service
-        email_service = get_email_service()
-        email_service.send_vendor_approval_notification(
-            to_email=vendor.email,
-            vendor_name=vendor.contact_name,
-            organization_name=db.query(Organization).filter(
-                Organization.id == current_user.organization_id
-            ).first().name,
-            admin_name=current_user.full_name or current_user.email,
-            approved=True,
-            notes=notes
-        )
+        # Send approval email to vendor - using direct import to avoid circular import issues
+        try:
+            from app.services.email_service import email_service
+            email_service.send_vendor_approval_notification(
+                to_email=vendor.email,
+                vendor_name=vendor.contact_name,
+                organization_name=db.query(Organization).filter(
+                    Organization.id == current_user.organization_id
+                ).first().name if db.query(Organization).filter(
+                    Organization.id == current_user.organization_id
+                ).first() else "Organization",
+                admin_name=current_user.full_name or current_user.email,
+                approved=True,
+                notes=notes
+            )
+        except Exception as email_error:
+            # Don't fail the approval if email fails
+            print(f"Email notification failed: {email_error}")
+            pass
         
         # Log security event
         security_log = SecurityAuditLog(
@@ -1063,7 +1075,7 @@ async def approve_vendor_request(
 @router.post("/admin/vendor-requests/{request_id}/reject")
 async def reject_vendor_request(
     request_id: str,
-    notes: Optional[str] = None,
+    request_data: VendorDecisionRequest,
     current_user: User = Depends(require_permission(Permission.VENDOR_MANAGE)),
     db: Session = Depends(get_db)
 ):
@@ -1073,6 +1085,7 @@ async def reject_vendor_request(
     Admin can reject vendor registrations
     """
     try:
+        notes = request_data.notes
         # Find the request
         req = db.query(VendorApprovalRequest).filter(
             VendorApprovalRequest.request_id == request_id,
@@ -1106,19 +1119,25 @@ async def reject_vendor_request(
         db.add(vendor)
         db.commit()
         
-        # Send rejection email to vendor
-        from app.services.email_service import get_email_service
-        email_service = get_email_service()
-        email_service.send_vendor_approval_notification(
-            to_email=vendor.email,
-            vendor_name=vendor.contact_name,
-            organization_name=db.query(Organization).filter(
-                Organization.id == current_user.organization_id
-            ).first().name,
-            admin_name=current_user.full_name or current_user.email,
-            approved=False,
-            notes=notes
-        )
+        # Send rejection email to vendor - using direct import to avoid circular import issues
+        try:
+            from app.services.email_service import email_service
+            email_service.send_vendor_approval_notification(
+                to_email=vendor.email,
+                vendor_name=vendor.contact_name,
+                organization_name=db.query(Organization).filter(
+                    Organization.id == current_user.organization_id
+                ).first().name if db.query(Organization).filter(
+                    Organization.id == current_user.organization_id
+                ).first() else "Organization",
+                admin_name=current_user.full_name or current_user.email,
+                approved=False,
+                notes=notes
+            )
+        except Exception as email_error:
+            # Don't fail the rejection if email fails
+            print(f"Email notification failed: {email_error}")
+            pass
         
         # Log security event
         security_log = SecurityAuditLog(

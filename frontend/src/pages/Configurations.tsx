@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { FileText, Calendar, Shield, Play, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { listConfigurations, runAudit } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import type { Configuration } from '../types';
 import BackButton from '../components/BackButton';
@@ -12,7 +11,6 @@ const Configurations = () => {
   const [loading, setLoading] = useState(true);
   const [runningAudit, setRunningAudit] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   
   useEffect(() => {

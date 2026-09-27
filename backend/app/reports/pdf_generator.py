@@ -447,34 +447,60 @@ class PDFReportGenerator:
         return elements
     
     def _format_finding(self, finding: Dict) -> List:
-        """Format a single finding"""
+        """Format a single finding with comprehensive details"""
         elements = []
         
         severity = finding.get('severity', 'UNKNOWN')
-        title = finding.get('title', 'Untitled Finding')
+        title = finding.get('title', finding.get('rule_name', 'Untitled Finding'))
         description = finding.get('description', 'No description available')
+        status = finding.get('status', 'UNKNOWN')
         
-        # Finding header
-        finding_text = f"""
-        <b>[{severity}] {title}</b><br/>
-        <i>Finding ID: {finding.get('finding_id', 'N/A')}</i>
+        # Finding header with status color coding
+        status_color = {
+            'PASS': 'green',
+            'FAIL': 'red', 
+            'UNKNOWN': 'orange'
+        }.get(status, 'black')
+        
+        finding_header = f"""
+        <b><font color="{status_color}">[{severity}] {title}</font></b><br/>
+        <i>Finding ID: {finding.get('finding_id', 'N/A')} | Rule: {finding.get('rule_id', 'N/A')} | Status: <font color="{status_color}">{status}</font></i>
         """
-        elements.append(Paragraph(finding_text, self.styles[f'Severity{severity}']))
+        elements.append(Paragraph(finding_header, self.styles[f'Severity{severity}']))
         
         # Description
-        elements.append(Paragraph(description, self.styles['ReportBody']))
+        elements.append(Paragraph(f"<b>Description:</b> {description}", self.styles['ReportBody']))
         
-        # Device affected
-        if finding.get('device_id'):
-            device_text = f"<b>Affected Device:</b> {finding.get('device_id')}"
-            elements.append(Paragraph(device_text, self.styles['ReportBody']))
+        # Expected vs Actual (if available)
+        expected = finding.get('expected')
+        actual = finding.get('actual')
+        if expected and actual:
+            elements.append(Paragraph(f"<b>Expected:</b> {expected}", self.styles['ReportBody']))
+            elements.append(Paragraph(f"<b>Actual:</b> {actual}", self.styles['ReportBody']))
         
-        # Framework/Control
-        if finding.get('framework'):
-            framework_text = f"<b>Framework:</b> {finding.get('framework')} - {finding.get('control', 'N/A')}"
-            elements.append(Paragraph(framework_text, self.styles['ReportBody']))
+        # Impact and Risk (if available)
+        impact = finding.get('impact')
+        if impact:
+            elements.append(Paragraph(f"<b>Impact:</b> {impact}", self.styles['ReportBody']))
         
-        elements.append(Spacer(1, 0.1*inch))
+        # Configuration lines (if available)
+        config_lines = finding.get('configuration_lines', [])
+        if config_lines:
+            elements.append(Paragraph("<b>Relevant Configuration:</b>", self.styles['ReportBody']))
+            for line in config_lines[:5]:  # Show first 5 lines
+                elements.append(Paragraph(f"<font face='Courier' size='9'>{line}</font>", self.styles['Evidence']))
+        
+        # Remediation recommendations
+        remediation = finding.get('remediation')
+        if remediation and remediation != 'No remediation guidance available':
+            elements.append(Paragraph(f"<b>Remediation:</b> {remediation}", self.styles['ReportBody']))
+        
+        # Field path (technical detail)
+        field_path = finding.get('field_path')
+        if field_path:
+            elements.append(Paragraph(f"<b>Field Path:</b> <font face='Courier' size='9'>{field_path}</font>", self.styles['ReportBody']))
+        
+        elements.append(Spacer(1, 0.15*inch))
         
         return elements
     
@@ -496,11 +522,56 @@ class PDFReportGenerator:
         return elements
     
     def _create_technical_summary(self, data: Dict) -> List:
-        """Create technical summary"""
+        """Create comprehensive technical summary"""
         elements = []
         
-        # Similar to executive but with more technical detail
+        # Basic compliance and risk overview
         elements.extend(self._create_executive_summary(data))
+        
+        # Add technical details
+        elements.append(Spacer(1, 0.2*inch))
+        elements.append(Paragraph("Technical Assessment Details", self.styles['SubsectionHeading']))
+        
+        # Configuration analysis
+        config_filename = data.get('config_filename', 'Unknown')
+        vendor = data.get('vendor', 'Unknown')
+        elements.append(Paragraph(f"<b>Configuration File:</b> {config_filename}", self.styles['ReportBody']))
+        elements.append(Paragraph(f"<b>Detected Vendor:</b> {vendor}", self.styles['ReportBody']))
+        
+        # Audit execution details
+        audit_date = data.get('audit_date', 'Unknown')
+        elements.append(Paragraph(f"<b>Assessment Date:</b> {audit_date}", self.styles['ReportBody']))
+        
+        # Findings breakdown
+        findings_by_severity = data.get('findings_by_severity', {})
+        if findings_by_severity:
+            elements.append(Spacer(1, 0.1*inch))
+            elements.append(Paragraph("<b>Security Findings Distribution:</b>", self.styles['ReportBody']))
+            
+            for severity, count in findings_by_severity.items():
+                if count > 0:
+                    elements.append(Paragraph(f"• {severity.upper()}: {count} findings", self.styles['ReportBody']))
+        
+        # Status distribution
+        findings = data.get('findings', [])
+        if findings:
+            status_counts = {}
+            for finding in findings:
+                status = finding.get('status', 'UNKNOWN')
+                status_counts[status] = status_counts.get(status, 0) + 1
+            
+            elements.append(Spacer(1, 0.1*inch))
+            elements.append(Paragraph("<b>Assessment Results:</b>", self.styles['ReportBody']))
+            
+            for status, count in status_counts.items():
+                color = {'PASS': 'green', 'FAIL': 'red', 'UNKNOWN': 'orange'}.get(status, 'black')
+                elements.append(Paragraph(f"• <font color='{color}'>{status}: {count} controls</font>", self.styles['ReportBody']))
+        
+        # Risk assessment
+        risk_level = data.get('risk_level', 'UNKNOWN')
+        risk_score = data.get('risk_score', 0)
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph(f"<b>Overall Risk Assessment:</b> {risk_level} (Score: {risk_score})", self.styles['ReportBody']))
         
         return elements
     
@@ -580,19 +651,60 @@ class PDFReportGenerator:
         return elements
     
     def _create_remediation_section(self, data: Dict) -> List:
-        """Create remediation guidance section"""
+        """Create comprehensive remediation guidance section"""
         elements = []
         
-        remediations = data.get('remediations', [])
+        findings = data.get('findings', [])
         
-        for remediation in remediations:
-            rem_text = f"""
-            <b>Finding:</b> {remediation.get('finding_title', 'N/A')}<br/>
-            <b>Recommendation:</b> {remediation.get('recommendation', 'N/A')}<br/>
-            <b>Expected Improvement:</b> {remediation.get('expected_improvement', 'N/A')}
-            """
-            elements.append(Paragraph(rem_text, self.styles['ReportBody']))
+        # Group findings by priority for remediation
+        critical_high = [f for f in findings if f.get('severity') in ['CRITICAL', 'HIGH'] and f.get('status') != 'PASS']
+        medium_low = [f for f in findings if f.get('severity') in ['MEDIUM', 'LOW'] and f.get('status') != 'PASS']
+        
+        if critical_high:
+            elements.append(Paragraph("Priority 1: Critical & High Severity Issues", self.styles['SubsectionHeading']))
+            elements.append(Paragraph("These issues should be addressed immediately as they pose significant security risks.", self.styles['ReportBody']))
             elements.append(Spacer(1, 0.1*inch))
+            
+            for finding in critical_high:
+                remediation = finding.get('remediation', 'No specific remediation guidance available')
+                if remediation != 'No remediation guidance available':
+                    rem_text = f"""
+                    <b>[{finding.get('severity')}] {finding.get('rule_name', finding.get('title', 'Unknown'))}:</b><br/>
+                    {remediation}
+                    """
+                    elements.append(Paragraph(rem_text, self.styles['ReportBody']))
+                    elements.append(Spacer(1, 0.1*inch))
+        
+        if medium_low:
+            elements.append(Spacer(1, 0.2*inch))
+            elements.append(Paragraph("Priority 2: Medium & Low Severity Issues", self.styles['SubsectionHeading']))
+            elements.append(Paragraph("These issues should be addressed as part of regular security maintenance.", self.styles['ReportBody']))
+            elements.append(Spacer(1, 0.1*inch))
+            
+            for finding in medium_low[:5]:  # Limit to first 5 to keep report concise
+                remediation = finding.get('remediation', 'No specific remediation guidance available')
+                if remediation != 'No remediation guidance available':
+                    rem_text = f"""
+                    <b>[{finding.get('severity')}] {finding.get('rule_name', finding.get('title', 'Unknown'))}:</b><br/>
+                    {remediation}
+                    """
+                    elements.append(Paragraph(rem_text, self.styles['ReportBody']))
+                    elements.append(Spacer(1, 0.1*inch))
+        
+        # General recommendations
+        elements.append(Spacer(1, 0.2*inch))
+        elements.append(Paragraph("General Security Recommendations", self.styles['SubsectionHeading']))
+        
+        general_recommendations = [
+            "Implement a regular configuration review process",
+            "Establish security configuration baselines",
+            "Enable comprehensive logging and monitoring",
+            "Implement automated compliance checking",
+            "Schedule periodic security assessments"
+        ]
+        
+        for rec in general_recommendations:
+            elements.append(Paragraph(f"• {rec}", self.styles['ReportBody']))
         
         return elements
     

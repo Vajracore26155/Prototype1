@@ -29,6 +29,8 @@ from .models import (
     VendorUser,
     VendorOTP,
     VendorUploadSession,
+    VendorApprovalRequest,
+    VendorUploadSession,
     VendorApprovalRequest
 )
 

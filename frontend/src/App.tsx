@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -8,13 +8,17 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import Upload from './pages/Upload';
-import Configurations from './pages/Configurations';
-import AuditResults from './pages/AuditResults';
 import VendorRegister from './pages/VendorRegister';
 import VendorLogin from './pages/VendorLogin';
 import VendorDashboard from './pages/VendorDashboard';
+import VendorDashboardEnhanced from './pages/VendorDashboardEnhanced';
 import VendorUpload from './pages/VendorUpload';
+import VendorUploadEnhanced from './pages/VendorUploadEnhanced';
+import VendorConfiguration from './pages/VendorConfiguration';
+import VendorAuditDetails from './pages/VendorAuditDetails';
+import VendorSettings from './pages/VendorSettings';
+import VendorConfigurations from './pages/VendorConfigurations';
+import VendorConfigurationEnhanced from './pages/VendorConfigurationEnhanced';
 import AdminVendors from './pages/AdminVendors';
 
 function App() {
@@ -35,8 +39,14 @@ function App() {
             <Route path="/vendor/login" element={<VendorLogin />} />
             
             {/* Vendor protected routes */}
-            <Route path="/vendor/dashboard" element={<VendorDashboard />} />
-            <Route path="/vendor/upload" element={<VendorUpload />} />
+            <Route path="/vendor/dashboard" element={<VendorDashboardEnhanced />} />
+            <Route path="/vendor/dashboard/legacy" element={<VendorDashboard />} />
+            <Route path="/vendor/configurations" element={<VendorConfigurations />} />
+            <Route path="/vendor/upload" element={<VendorUploadEnhanced />} />
+            <Route path="/vendor/upload/legacy" element={<VendorUpload />} />
+            <Route path="/vendor/configuration/:configId" element={<VendorConfiguration />} />
+            <Route path="/vendor/audit/:auditId" element={<VendorAuditDetails />} />
+            <Route path="/vendor/settings" element={<VendorSettings />} />
             
             {/* Protected routes */}
             <Route
@@ -55,36 +65,6 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <AdminDashboard />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/upload"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Upload />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/configurations"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Configurations />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/audit/:auditId"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <AuditResults />
                   </Layout>
                 </ProtectedRoute>
               }

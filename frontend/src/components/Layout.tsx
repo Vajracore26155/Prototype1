@@ -1,6 +1,6 @@
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LayoutDashboard, Upload, FileText, User, LogOut, Building, ChevronDown } from 'lucide-react';
+import { Shield, LayoutDashboard, FileText, User, LogOut, Building, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -58,8 +58,6 @@ const Layout = ({ children }: LayoutProps) => {
   
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/upload', label: 'Upload', icon: Upload },
-    { path: '/configurations', label: 'Configurations', icon: FileText },
   ];
   
   // Add Admin Dashboard and Vendor Management for admins
