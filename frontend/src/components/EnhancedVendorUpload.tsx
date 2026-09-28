@@ -22,6 +22,30 @@ const EnhancedVendorUpload: React.FC<EnhancedVendorUploadProps> = ({ onUploadCom
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'single' | 'bulk'>('single');
   const [redirectNotice, setRedirectNotice] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
+
+  const loadDemoFile = async (url: string, filename: string) => {
+    setDemoLoading(filename);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Could not load demo file');
+      const blob = await res.blob();
+      const file = new File([blob], filename, { type: 'text/plain' });
+      setFiles(prev => [
+        ...prev,
+        {
+          file,
+          id: Math.random().toString(36).substr(2, 9),
+          status: 'pending' as const,
+          progress: 0,
+        },
+      ]);
+    } catch (err) {
+      console.error('Demo file load error:', err);
+    } finally {
+      setDemoLoading(null);
+    }
+  };
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -213,6 +237,44 @@ const EnhancedVendorUpload: React.FC<EnhancedVendorUploadProps> = ({ onUploadCom
               </p>
             </div>
           )}
+        </div>
+      </div>
+      {/* Demo Files */}
+      <div className="tatva-card p-7">
+        <div className="text-xs font-bold tracking-[0.24em] text-ink-500">TRY IT OUT</div>
+        <h3 className="text-2xl font-bold tracking-tight text-ink-900 mt-1">Demo Files</h3>
+        <p className="text-sm font-semibold text-ink-500 mt-2">
+          No config handy? Click a sample to load it into the uploader above.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+          <button
+            type="button"
+            onClick={() => loadDemoFile('/demo-configs/cisco_secure.cfg', 'cisco_secure.cfg')}
+            disabled={demoLoading !== null || isUploading}
+            className="flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-bold bg-mist-100 text-ink-900 hover:bg-mist-200 disabled:opacity-50"
+          >
+            <span>cisco_secure.cfg</span>
+            <span aria-hidden="true">{demoLoading === 'cisco_secure.cfg' ? '…' : '+'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => loadDemoFile('/demo-configs/cisco_insecure.cfg', 'cisco_insecure.cfg')}
+            disabled={demoLoading !== null || isUploading}
+            className="flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-bold bg-mist-100 text-ink-900 hover:bg-mist-200 disabled:opacity-50"
+          >
+            <span>cisco_insecure.cfg</span>
+            <span aria-hidden="true">{demoLoading === 'cisco_insecure.cfg' ? '…' : '+'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => loadDemoFile('/demo-configs/complex_proprietary.conf', 'complex_proprietary.conf')}
+            disabled={demoLoading !== null || isUploading}
+            className="flex items-center justify-between px-5 py-3.5 rounded-xl text-sm font-bold bg-mist-100 text-ink-900 hover:bg-mist-200 disabled:opacity-50"
+          >
+            <span>complex_proprietary.conf</span>
+            <span aria-hidden="true">{demoLoading === 'complex_proprietary.conf' ? '…' : '+'}</span>
+          </button>
         </div>
       </div>
       {/* File List */}

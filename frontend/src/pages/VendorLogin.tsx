@@ -295,6 +295,30 @@ export default function VendorLogin() {
               </form>
             )}
 
+            <div className="mt-6 p-4 bg-mist-100 border border-line rounded-xl">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-500 mb-2">
+                Demo Credentials (Password Login)
+              </p>
+              <p className="text-sm font-semibold text-ink-900">
+                Email: <span className="font-mono">designteam2345@gmail.com</span>
+              </p>
+              <p className="text-sm font-semibold text-ink-900">
+                Password: <span className="font-mono">demo@123</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('password');
+                  setPasswordEmail('designteam2345@gmail.com');
+                  setPassword('demo@123');
+                  setError('');
+                }}
+                className="mt-3 w-full py-2 px-4 rounded-xl text-sm font-bold bg-white border border-line text-ink-900 hover:bg-mist-50"
+              >
+                Use demo credentials
+              </button>
+            </div>
+
             <div className="mt-6 text-center space-y-2 border-t border-line pt-6">
               <Link
                 to="/vendor/register"
