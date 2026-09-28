@@ -14,7 +14,46 @@ env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # Import database initialization
-from app.database import init_db
+from app.database import init_db, SessionLocal, Organization
+def ensure_default_organization():
+    """Ensure the default organization exists for vendor registration."""
+    db = SessionLocal()
+
+    try:
+        # Vendor registration currently defaults to organization_id=1.
+        organization = db.query(Organization).filter(
+            Organization.id == 1
+        ).first()
+
+        if organization:
+            print(
+                f"[STARTUP] Default organization already exists: "
+                f"{organization.org_id}"
+            )
+            return
+
+        organization = Organization(
+            org_id="ORG-000001",
+            name="Admin Organization",
+            slug="admin-org",
+            status="ACTIVE"
+        )
+
+        db.add(organization)
+        db.commit()
+        db.refresh(organization)
+
+        print(
+            f"[SUCCESS] Default organization created: "
+            f"{organization.org_id} (ID: {organization.id})"
+        )
+
+    except Exception as e:
+        db.rollback()
+        print(f"[WARNING] Default organization initialization failed: {e}")
+
+    finally:
+        db.close()
 
 # Import API routers
 from app.api import upload, audit, findings, learning
@@ -24,14 +63,24 @@ from app.api import frameworks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
+
     # Startup
     print("[STARTUP] Starting SIH26155 Network Security Auditor...")
+
     try:
+        # Create database tables
         init_db()
+
+        # Ensure required default organization exists
+        ensure_default_organization()
+
     except Exception as e:
         print(f"[WARNING] Database initialization error: {e}")
+
     print("[STARTUP] Application ready!")
+
     yield
+
     # Shutdown
     print("[SHUTDOWN] Shutting down...")
 
