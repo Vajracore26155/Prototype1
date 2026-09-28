@@ -14,7 +14,10 @@ env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 # Import database initialization
-from app.database import init_db, SessionLocal, Organization
+from app.database import init_db, SessionLocal, Organization, User
+from app.auth.security import get_password_hash
+from app.auth.permissions import Role
+
 def ensure_default_organization():
     """Ensure the default organization exists for vendor registration."""
     db = SessionLocal()
@@ -55,6 +58,82 @@ def ensure_default_organization():
     finally:
         db.close()
 
+def ensure_default_admin():
+    """Ensure the default SUPER_ADMIN user exists."""
+    db = SessionLocal()
+
+    try:
+        admin_email = os.getenv(
+            "DEFAULT_ADMIN_EMAIL",
+            "admin@tatva.security"
+        )
+
+        admin_password = os.getenv(
+            "DEFAULT_ADMIN_PASSWORD"
+        )
+
+        if not admin_password:
+            print(
+                "[WARNING] DEFAULT_ADMIN_PASSWORD is not configured. "
+                "Skipping default admin creation."
+            )
+            return
+
+        # Check whether admin already exists
+        admin = db.query(User).filter(
+            User.email == admin_email
+        ).first()
+
+        if admin:
+            print(
+                f"[STARTUP] Default admin already exists: "
+                f"{admin.email} (role={admin.role})"
+            )
+            return
+
+        # Make sure organization ID 1 exists
+        organization = db.query(Organization).filter(
+            Organization.id == 1
+        ).first()
+
+        if not organization:
+            print(
+                "[WARNING] Cannot create default admin because "
+                "organization ID 1 does not exist."
+            )
+            return
+
+        admin = User(
+            user_id="USR-000001",
+            email=admin_email,
+            username="admin",
+            hashed_password=get_password_hash(admin_password),
+            full_name="System Administrator",
+            organization_id=organization.id,
+            role=Role.SUPER_ADMIN.value,
+            is_active=True,
+            is_verified=True
+        )
+
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+
+        print(
+            f"[SUCCESS] Default admin created: "
+            f"{admin.email} "
+            f"(ID={admin.id}, role={admin.role})"
+        )
+
+    except Exception as e:
+        db.rollback()
+        print(
+            f"[WARNING] Default admin initialization failed: {e}"
+        )
+
+    finally:
+        db.close()
+
 # Import API routers
 from app.api import upload, audit, findings, learning
 from app.api import frameworks
@@ -73,6 +152,7 @@ async def lifespan(app: FastAPI):
 
         # Ensure required default organization exists
         ensure_default_organization()
+        ensure_default_admin()
 
     except Exception as e:
         print(f"[WARNING] Database initialization error: {e}")
