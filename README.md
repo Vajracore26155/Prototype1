@@ -1,10 +1,8 @@
-# VAJRA CORE — AI-Driven Multi-Vendor Network Security Compliance Auditor
+# VAJRA CORE : AI-Driven Multi-Vendor Network Security Compliance Auditor
 
 **Problem statement / organization:** National Technical Research Organisation (NTRO)  
 **Live preview:** https://vajracores.vercel.app/  
-**Project type:** Network configuration auditing, security compliance, and AI-assisted configuration mapping
-
-> **Implementation note:** This README is based on inspection of the uploaded `Prototype1-main` repository. It distinguishes code present in the repository from features that require broader implementation or validation. A parser module or framework mapping does not, by itself, mean every vendor, firmware version, or official benchmark is fully covered.
+**Project type:** Network configuration auditing, security compliance, and AI-assisted configuration mapping.
 
 ## Table of Contents
 
